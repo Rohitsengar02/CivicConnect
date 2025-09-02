@@ -3,9 +3,8 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
-import { motion, useAnimation } from "framer-motion";
-import { ArrowUp, ArrowDown, MapPin } from "lucide-react";
+import { motion } from "framer-motion";
+import { ArrowUp, ArrowDown, MapPin, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -29,27 +28,13 @@ type IssueCardProps = {
   issue: Issue;
 };
 
-const statusConfig: Record<IssueStatus, { value: number; color: string }> = {
-  Pending: { value: 10, color: "bg-yellow-500" },
-  Confirmation: { value: 40, color: "bg-blue-500" },
-  Acknowledgment: { value: 70, color: "bg-purple-500" },
-  Resolution: { value: 100, color: "bg-green-500" },
-};
+const statuses: IssueStatus[] = ["Pending", "Confirmation", "Acknowledgment", "Resolution"];
+const statusIndex = (status: IssueStatus) => statuses.indexOf(status);
+
 
 export function IssueCard({ issue }: IssueCardProps) {
   const [voteCount, setVoteCount] = useState(0);
   const [voted, setVoted] = useState<"up" | "down" | null>(null);
-  const controls = useAnimation();
-  const progressValue = statusConfig[issue.status].value;
-  const progressColor = statusConfig[issue.status].color;
-
-  useEffect(() => {
-    controls.start({
-      width: `${progressValue}%`,
-      transition: { duration: 1, ease: "easeInOut" },
-    });
-  }, [progressValue, controls]);
-
 
   const handleUpvote = () => {
     if (voted === "up") {
@@ -134,7 +119,7 @@ export function IssueCard({ issue }: IssueCardProps) {
         </div>
       </div>
        <div className="px-4 pb-4">
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-semibold text-muted-foreground">
             Status
           </span>
@@ -142,12 +127,43 @@ export function IssueCard({ issue }: IssueCardProps) {
             {issue.status}
           </span>
         </div>
-        <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
-          <motion.div
-            className={cn("absolute left-0 top-0 h-full rounded-full", progressColor)}
-            initial={{ width: "0%" }}
-            animate={controls}
-          />
+        <div className="relative flex items-center w-full">
+            <div className="absolute h-1 w-full bg-secondary rounded-full">
+                <motion.div
+                    className="h-1 rounded-full bg-gradient-to-r from-teal-400 to-blue-500"
+                    initial={{ width: '0%' }}
+                    animate={{ width: `${(statusIndex(issue.status) / (statuses.length - 1)) * 100}%` }}
+                    transition={{ duration: 0.8, ease: "easeInOut" }}
+                />
+            </div>
+            <div className="relative w-full flex justify-between items-center">
+                {statuses.map((status, index) => (
+                    <div key={status} className="flex flex-col items-center">
+                       <motion.div
+                            className={cn(
+                                "h-3 w-3 rounded-full bg-secondary border-2 border-secondary transition-colors duration-500",
+                                statusIndex(issue.status) >= index && "bg-gradient-to-br from-teal-400 to-blue-500 border-teal-200"
+                            )}
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ delay: 0.2 + index * 0.1 }}
+                        >
+                            {statusIndex(issue.status) >= index && (
+                                <motion.div initial={{scale:0}} animate={{scale:1}} className="text-white flex items-center justify-center h-full w-full">
+                                    <CheckCircle2 size={10} className="text-primary-foreground opacity-75"/>
+                                </motion.div>
+                            )}
+                        </motion.div>
+                    </div>
+                ))}
+            </div>
+        </div>
+        <div className="w-full flex justify-between items-center mt-2 text-xs text-muted-foreground">
+            {statuses.map((status) => (
+                 <span key={status} className={cn("w-1/4 text-center", issue.status === status && "font-bold text-foreground")}>
+                    {status}
+                </span>
+            ))}
         </div>
       </div>
     </motion.div>
