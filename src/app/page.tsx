@@ -7,9 +7,9 @@ export default function Home() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
       <Header />
-      <main className="flex-1 pt-8">
+      <main className="flex-1">
         <HeroSection />
-        <div className="container mx-auto px-4 py-8 -mt-16">
+        <div className="container mx-auto px-4 py-8">
             <IssueGrid />
         </div>
       </main>
