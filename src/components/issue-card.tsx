@@ -158,9 +158,9 @@ export function IssueCard({ issue }: IssueCardProps) {
                 ))}
             </div>
         </div>
-        <div className="w-full flex justify-between items-center mt-2 text-xs text-muted-foreground">
-            {statuses.map((status) => (
-                 <span key={status} className={cn("w-1/4 text-center", issue.status === status && "font-bold text-foreground")}>
+        <div className="w-full flex justify-between items-start mt-2 text-xs text-muted-foreground">
+            {statuses.map((status, index) => (
+                 <span key={status} className={cn("w-[23%] text-center leading-tight", issue.status === status && "font-bold text-foreground")}>
                     {status}
                 </span>
             ))}
