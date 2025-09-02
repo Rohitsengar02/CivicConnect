@@ -12,6 +12,7 @@ type Issue = {
   title:string;
   district: string;
   category: string;
+  status: "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
   description: string;
   aiHint: string;
 };

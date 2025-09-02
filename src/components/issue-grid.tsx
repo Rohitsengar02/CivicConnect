@@ -10,6 +10,7 @@ const issues = [
     title: "Large Pothole on Main St",
     district: "Ranchi",
     category: "Roads",
+    status: "Confirmation",
     aiHint: "pothole road",
   },
   {
@@ -21,6 +22,7 @@ const issues = [
     title: "Streetlight not working",
     district: "Dhanbad",
     category: "Electricity",
+    status: "Pending",
     aiHint: "dark street",
   },
   {
@@ -32,6 +34,7 @@ const issues = [
     title: "Garbage overflow",
     district: "Patna",
     category: "Sanitation",
+    status: "Resolution",
     aiHint: "garbage pile",
   },
   {
@@ -43,6 +46,7 @@ const issues = [
     title: "Broken Water Pipe",
     district: "Lucknow",
     category: "Water Supply",
+    status: "Acknowledgment",
     aiHint: "leaking pipe",
   },
     {
@@ -54,6 +58,7 @@ const issues = [
     title: "Fallen Tree Blocking Road",
     district: "Ranchi",
     category: "Public Safety",
+    status: "Pending",
     aiHint: "fallen tree",
   },
   {
@@ -65,6 +70,7 @@ const issues = [
     title: "Open Manhole Cover",
     district: "Patna",
     category: "Sanitation",
+    status: "Confirmation",
     aiHint: "open manhole",
   },
 ];
@@ -76,7 +82,7 @@ export function IssueGrid() {
   }));
 
   return (
-    <section className="py-8">
+    <section className="py-8 pt-16">
         <IssueGridClient issues={issuesWithDescriptions} />
     </section>
   );

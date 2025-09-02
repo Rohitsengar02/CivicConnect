@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { motion } from "framer-motion";
+import { Progress } from "@/components/ui/progress";
+import { motion, useAnimation } from "framer-motion";
 import { ArrowUp, ArrowDown, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+
+type IssueStatus = "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
 
 type Issue = {
   id: number;
@@ -17,6 +20,7 @@ type Issue = {
   title: string;
   district: string;
   category: string;
+  status: IssueStatus;
   description: string;
   aiHint: string;
 };
@@ -25,9 +29,27 @@ type IssueCardProps = {
   issue: Issue;
 };
 
+const statusConfig: Record<IssueStatus, { value: number; color: string }> = {
+  Pending: { value: 10, color: "bg-yellow-500" },
+  Confirmation: { value: 40, color: "bg-blue-500" },
+  Acknowledgment: { value: 70, color: "bg-purple-500" },
+  Resolution: { value: 100, color: "bg-green-500" },
+};
+
 export function IssueCard({ issue }: IssueCardProps) {
   const [voteCount, setVoteCount] = useState(0);
   const [voted, setVoted] = useState<"up" | "down" | null>(null);
+  const controls = useAnimation();
+  const progressValue = statusConfig[issue.status].value;
+  const progressColor = statusConfig[issue.status].color;
+
+  useEffect(() => {
+    controls.start({
+      width: `${progressValue}%`,
+      transition: { duration: 1, ease: "easeInOut" },
+    });
+  }, [progressValue, controls]);
+
 
   const handleUpvote = () => {
     if (voted === "up") {
@@ -53,7 +75,7 @@ export function IssueCard({ issue }: IssueCardProps) {
   return (
     <motion.div
       initial={{ boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.1)' }}
-      whileHover={{ y: -8, scale: 1.02, boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.2)' }}
+      whileHover={{ y: -8, scale: 1.02, boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}
       transition={{ type: "spring", stiffness: 300 }}
       className="group relative overflow-hidden rounded-2xl border border-white/20 bg-card/50 text-card-foreground backdrop-blur-lg"
     >
@@ -109,6 +131,23 @@ export function IssueCard({ issue }: IssueCardProps) {
                     <ArrowDown size={20} />
                 </button>
             </div>
+        </div>
+      </div>
+       <div className="px-4 pb-4">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs font-semibold text-muted-foreground">
+            Status
+          </span>
+          <span className="text-xs font-bold text-foreground">
+            {issue.status}
+          </span>
+        </div>
+        <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
+          <motion.div
+            className={cn("absolute left-0 top-0 h-full rounded-full", progressColor)}
+            initial={{ width: "0%" }}
+            animate={controls}
+          />
         </div>
       </div>
     </motion.div>
