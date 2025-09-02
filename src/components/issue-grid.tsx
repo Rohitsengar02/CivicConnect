@@ -82,7 +82,7 @@ export function IssueGrid() {
   }));
 
   return (
-    <section className="py-8 pt-16">
+    <section className="py-4">
         <IssueGridClient issues={issuesWithDescriptions} />
     </section>
   );

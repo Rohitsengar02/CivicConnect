@@ -10,11 +10,11 @@ export default function Home() {
       <Header />
       <main className="flex-1 pt-20">
         <HeroSection />
-        <div className="container mx-auto -mt-8 z-10 px-4">
-            <HomeFilters />
+        <div className="container z-10 mx-auto mt-8 px-4">
+          <HomeFilters />
         </div>
         <div className="container mx-auto px-4 py-8">
-            <IssueGrid />
+          <IssueGrid />
         </div>
       </main>
       <MobileNav />
