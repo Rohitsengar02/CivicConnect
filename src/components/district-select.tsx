@@ -10,12 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { ChevronDown } from "lucide-react"
 
 export function DistrictSelect() {
   return (
     <Select>
-      <SelectTrigger className="w-full md:w-[180px]">
+      <SelectTrigger className="w-full md:w-[180px] rounded-full border-0 bg-secondary/70 backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
         <div className="flex items-center gap-2">
             <SelectValue placeholder="Select District" />
         </div>

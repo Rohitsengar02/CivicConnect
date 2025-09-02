@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { DistrictSelect } from "@/components/district-select";
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
@@ -34,8 +35,8 @@ export function Header() {
         
         <nav className="hidden items-center gap-6 md:flex">
             <Link href="#" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Explore</Link>
+            <DistrictSelect />
             <Link href="#" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Report Issue</Link>
-            <Link href="#" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Leaderboard</Link>
             <Link href="#" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">About</Link>
         </nav>
 
