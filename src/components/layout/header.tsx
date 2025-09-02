@@ -2,13 +2,20 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Building2 } from "lucide-react";
+import { Building2, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DistrictSelect } from "@/components/district-select";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { ThemeToggle } from "../theme-toggle";
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -41,12 +48,38 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
+          <ThemeToggle />
           <Button variant="ghost">Log In</Button>
           <Button>Sign Up</Button>
         </div>
 
         <div className="md:hidden">
-          {/* Mobile menu button can be added here */}
+           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Menu />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right">
+              <div className="flex flex-col gap-6 p-6">
+                <DistrictSelect />
+                <nav className="flex flex-col gap-4">
+                    <Link href="#" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Explore</Link>
+                    <Link href="#" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Report Issue</Link>
+                    <Link href="#" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>About</Link>
+                </nav>
+                <div className="mt-auto flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg font-medium">Theme</span>
+                    <ThemeToggle />
+                  </div>
+                  <Button variant="ghost">Log In</Button>
+                  <Button>Sign Up</Button>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>
