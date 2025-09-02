@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Building2, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { DistrictSelect } from "@/components/district-select";
 import {
   Sheet,
   SheetContent,
@@ -42,7 +41,6 @@ export function Header() {
         
         <nav className="hidden items-center gap-6 md:flex">
             <Link href="/explore" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Explore</Link>
-            <DistrictSelect />
             <Link href="#" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Report Issue</Link>
             <Link href="#" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">About</Link>
         </nav>
@@ -63,7 +61,6 @@ export function Header() {
             </SheetTrigger>
             <SheetContent side="right">
               <div className="flex flex-col gap-6 p-6">
-                <DistrictSelect />
                 <nav className="flex flex-col gap-4">
                     <Link href="/explore" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Explore</Link>
                     <Link href="#" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Report Issue</Link>
