@@ -26,9 +26,10 @@ type IssueCardProps = {
 export function IssueCard({ issue }: IssueCardProps) {
   return (
     <motion.div
-      whileHover={{ y: -8, scale: 1.02, boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}
+      initial={{ boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.1)' }}
+      whileHover={{ y: -8, scale: 1.02, boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.2)' }}
       transition={{ type: "spring", stiffness: 300 }}
-      className="group relative overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-md"
+      className="group relative overflow-hidden rounded-2xl border border-white/20 bg-card/50 text-card-foreground backdrop-blur-lg"
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden">
         <Image
