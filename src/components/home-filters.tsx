@@ -2,7 +2,7 @@
 
 import { DistrictSelect } from "./district-select";
 import { Button } from "./ui/button";
-import { ListFilter, LayoutGrid, LayoutList } from "lucide-react";
+import { ListFilter } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,15 +53,6 @@ export function HomeFilters() {
                     <DropdownMenuItem>Parks</DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
-
-            <div className="hidden items-center gap-1 rounded-full bg-secondary/70 p-1 backdrop-blur-sm md:flex">
-                <Button size="icon" variant="ghost" className="rounded-full bg-background text-foreground shadow-sm">
-                    <LayoutGrid className="h-5 w-5" />
-                </Button>
-                <Button size="icon" variant="ghost" className="rounded-full text-muted-foreground">
-                    <LayoutList className="h-5 w-5" />
-                </Button>
-            </div>
         </div>
     </div>
     );
