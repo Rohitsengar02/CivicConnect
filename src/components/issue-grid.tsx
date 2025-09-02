@@ -1,5 +1,4 @@
 import { generateIssueDescription } from "@/ai/flows/generate-issue-descriptions";
-import { IssueCard } from "./issue-card";
 import { IssueGridClient } from "./issue-grid-client";
 
 const issues = [
@@ -72,22 +71,24 @@ const issues = [
 ];
 
 export async function IssueGrid() {
-  const issuesWithDescriptions = await Promise.all(
-    issues.map(async (issue) => {
-      try {
-        const { description } = await generateIssueDescription({
-          category: issue.category,
-        });
-        return { ...issue, description };
-      } catch (error) {
-        console.error("Failed to generate description:", error);
-        return {
-          ...issue,
-          description: `A new issue has been reported in the '${issue.category}' category. Please look into it.`,
-        };
-      }
-    })
-  );
+  const issuesWithDescriptions = [];
+  for (const issue of issues) {
+    try {
+      const { description } = await generateIssueDescription({
+        category: issue.category,
+      });
+      issuesWithDescriptions.push({ ...issue, description });
+    } catch (error) {
+      console.error(
+        `Failed to generate description for issue ${issue.id}:`,
+        error
+      );
+      issuesWithDescriptions.push({
+        ...issue,
+        description: `A new issue has been reported in the '${issue.category}' category. Please look into it.`,
+      });
+    }
+  }
 
   return (
     <section className="bg-secondary/50 py-16 sm:py-24">
