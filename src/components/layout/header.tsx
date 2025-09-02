@@ -41,7 +41,7 @@ export function Header() {
         
         <nav className="hidden items-center gap-6 md:flex">
             <Link href="/explore" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Explore</Link>
-            <Link href="#" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Report Issue</Link>
+            <Link href="/report-issue" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">Report Issue</Link>
             <Link href="#" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">About</Link>
         </nav>
 
@@ -63,7 +63,7 @@ export function Header() {
               <div className="flex flex-col gap-6 p-6">
                 <nav className="flex flex-col gap-4">
                     <Link href="/explore" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Explore</Link>
-                    <Link href="#" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Report Issue</Link>
+                    <Link href="/report-issue" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Report Issue</Link>
                     <Link href="#" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>About</Link>
                 </nav>
                 <div className="mt-auto flex flex-col gap-4">
