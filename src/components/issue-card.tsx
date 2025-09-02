@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
 import { ArrowUp, ArrowDown, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 type Issue = {
   id: number;
@@ -24,6 +26,30 @@ type IssueCardProps = {
 };
 
 export function IssueCard({ issue }: IssueCardProps) {
+  const [voteCount, setVoteCount] = useState(0);
+  const [voted, setVoted] = useState<"up" | "down" | null>(null);
+
+  const handleUpvote = () => {
+    if (voted === "up") {
+      setVoteCount(voteCount - 1);
+      setVoted(null);
+    } else {
+      setVoteCount(voteCount + (voted === "down" ? 2 : 1));
+      setVoted("up");
+    }
+  };
+
+  const handleDownvote = () => {
+    if (voted === "down") {
+      setVoteCount(voteCount + 1);
+      setVoted(null);
+    } else {
+      setVoteCount(voteCount - (voted === "up" ? 2 : 1));
+      setVoted("down");
+    }
+  };
+
+
   return (
     <motion.div
       initial={{ boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.1)' }}
@@ -39,15 +65,15 @@ export function IssueCard({ issue }: IssueCardProps) {
           className="object-cover transition-transform duration-300 group-hover:scale-105"
           data-ai-hint={issue.aiHint}
         />
-        <div className="absolute top-3 left-3">
-             <Badge variant="secondary" className="bg-background/70 backdrop-blur-sm">
+      </div>
+      <div className="p-4">
+        <div className="flex items-center justify-between">
+            <h3 className="font-headline text-lg font-semibold tracking-tight truncate">{issue.title}</h3>
+            <Badge variant="secondary" className="bg-background/70 backdrop-blur-sm shrink-0">
                 <MapPin className="mr-1.5 h-3 w-3" />
                 {issue.district}
             </Badge>
         </div>
-      </div>
-      <div className="p-4">
-        <h3 className="font-headline text-lg font-semibold tracking-tight truncate">{issue.title}</h3>
         <div className="mt-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
@@ -65,11 +91,21 @@ export function IssueCard({ issue }: IssueCardProps) {
                 </div>
             </div>
             <div className="flex items-center gap-1">
-                <button className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-green-500">
+                <button 
+                    onClick={handleUpvote}
+                    className={cn(
+                        "rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent",
+                        voted === "up" ? "bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400" : "hover:text-green-500"
+                    )}>
                     <ArrowUp size={20} />
                 </button>
-                <span className="text-sm font-semibold w-6 text-center">0</span>
-                <button className="rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-red-500">
+                <span className="text-sm font-semibold w-6 text-center">{voteCount}</span>
+                <button 
+                    onClick={handleDownvote}
+                    className={cn(
+                        "rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent",
+                         voted === "down" ? "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400" : "hover:text-red-500"
+                    )}>
                     <ArrowDown size={20} />
                 </button>
             </div>
