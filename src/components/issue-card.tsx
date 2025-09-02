@@ -29,7 +29,20 @@ type IssueCardProps = {
 };
 
 const statuses: IssueStatus[] = ["Pending", "Confirmation", "Acknowledgment", "Resolution"];
+const statusLabels: Record<IssueStatus, string> = {
+  Pending: "Pending",
+  Confirmation: "Confir...",
+  Acknowledgment: "Acknowled...",
+  Resolution: "Resolved",
+};
 const statusIndex = (status: IssueStatus) => statuses.indexOf(status);
+
+const statusGradients: Record<IssueStatus, string> = {
+  Pending: "from-gray-400 to-gray-500",
+  Confirmation: "from-yellow-400 to-orange-500",
+  Acknowledgment: "from-blue-400 to-indigo-500",
+  Resolution: "from-teal-400 to-green-500",
+};
 
 
 export function IssueCard({ issue }: IssueCardProps) {
@@ -130,7 +143,10 @@ export function IssueCard({ issue }: IssueCardProps) {
         <div className="relative flex items-center w-full">
             <div className="absolute h-1 w-full bg-secondary rounded-full">
                 <motion.div
-                    className="h-1 rounded-full bg-gradient-to-r from-teal-400 to-blue-500"
+                    className={cn(
+                        "h-1 rounded-full bg-gradient-to-r",
+                        statusGradients[issue.status]
+                    )}
                     initial={{ width: '0%' }}
                     animate={{ width: `${(statusIndex(issue.status) / (statuses.length - 1)) * 100}%` }}
                     transition={{ duration: 0.8, ease: "easeInOut" }}
@@ -142,7 +158,8 @@ export function IssueCard({ issue }: IssueCardProps) {
                        <motion.div
                             className={cn(
                                 "h-3 w-3 rounded-full bg-secondary border-2 border-secondary transition-colors duration-500",
-                                statusIndex(issue.status) >= index && "bg-gradient-to-br from-teal-400 to-blue-500 border-teal-200"
+                                statusIndex(issue.status) >= index && "bg-gradient-to-br border-transparent",
+                                statusIndex(issue.status) >= index && statusGradients[statuses[index]]
                             )}
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
@@ -160,8 +177,8 @@ export function IssueCard({ issue }: IssueCardProps) {
         </div>
         <div className="w-full flex justify-between items-start mt-2 text-xs text-muted-foreground">
             {statuses.map((status, index) => (
-                 <span key={status} className={cn("w-[23%] text-center leading-tight", issue.status === status && "font-bold text-foreground")}>
-                    {status}
+                 <span key={status} className={cn("flex-1 text-center leading-tight truncate", issue.status === status && "font-bold text-foreground")}>
+                    {statusLabels[status as IssueStatus]}
                 </span>
             ))}
         </div>
