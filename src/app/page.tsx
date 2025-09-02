@@ -10,7 +10,7 @@ export default function Home() {
       <Header />
       <main className="flex-1 pt-20">
         <HeroSection />
-        <div className="container mx-auto -mt-12 z-10 px-4">
+        <div className="container mx-auto -mt-8 z-10 px-4">
             <HomeFilters />
         </div>
         <div className="container mx-auto px-4 py-8">
