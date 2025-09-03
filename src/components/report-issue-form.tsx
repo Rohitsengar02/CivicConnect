@@ -1,7 +1,8 @@
+
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
+import NextImage from "next/image";
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -243,7 +244,7 @@ export function ReportIssueForm() {
                                     <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                                         {imagePreviews.map((src, index) => (
                                             <motion.div key={src} className="relative group" layout>
-                                                <Image src={src} alt={`Preview ${index}`} width={150} height={150} className="rounded-md object-cover w-full aspect-square" />
+                                                <NextImage src={src} alt={`Preview ${index}`} width={150} height={150} className="rounded-md object-cover w-full aspect-square" />
                                                 <Button type="button" size="icon" variant="destructive" className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removeImage(index)}>
                                                     <X className="h-4 w-4" />
                                                 </Button>
@@ -272,3 +273,5 @@ export function ReportIssueForm() {
         </>
     );
 }
+
+    
