@@ -71,12 +71,15 @@ export default function SignupPage() {
       
       let photoURL: string | null = null;
       if (values.profileImage) {
-          photoURL = await uploadToCloudinary(values.profileImage);
+          const uploadedUrl = await uploadToCloudinary(values.profileImage);
+          if (typeof uploadedUrl === 'string') {
+            photoURL = uploadedUrl;
+          }
       }
 
       await updateProfile(user, {
           displayName: values.name,
-          photoURL: photoURL
+          photoURL: photoURL,
       });
       
       await setDoc(doc(db, "users", user.uid), {
