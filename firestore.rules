@@ -1,65 +1,57 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper functions
-    function isSuperAdmin() {
-      // In a real app, this UID would be stored securely or managed via custom claims
-      return request.auth != null && request.auth.uid == "2AMc2E07j5fC7p31Jix6yGTc5aC3"; 
-    }
-    
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.status == 'approved';
+
+    function getSuperAdminUid() {
+      return env.SUPER_ADMIN_UID;
     }
 
-    match /users/{userId} {
-      allow read, update: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
-      
-      // Notifications subcollection
-      match /notifications/{notificationId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null;
-        allow update, delete: if false; 
-      }
-      
-      // Saved Issues subcollection
-      match /savedIssues/{issueId} {
-          allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-    }
-
+    // Admins can be managed by the super admin
     match /admins/{adminId} {
-      allow read, update: if isSuperAdmin();
-      // Allow a new user to create their own admin application document
-      allow create: if request.auth != null && request.auth.uid == adminId;
-      allow delete: if isSuperAdmin();
-    }
-    
-    match /districtAdmins/{districtId} {
-       allow get: if request.auth != null; // Allow checks for existence by anyone authenticated.
-       // Allow creation only if the adminId in the document matches the user creating it.
-       allow create: if request.auth != null && request.resource.data.adminId == request.auth.uid;
-       allow list, update, delete: if isSuperAdmin();
+      allow read, write: if request.auth != null && request.auth.uid == getSuperAdminUid();
+      allow get: if request.auth != null;
+      allow create: if request.auth != null;
     }
 
+    // District mappings can be created by a new admin for themselves, or managed by super admin
+    match /districtAdmins/{districtId} {
+      allow read, write: if request.auth != null && request.auth.uid == getSuperAdminUid();
+      allow create: if request.auth != null && request.resource.data.adminId == request.auth.uid;
+      allow get: if request.auth != null;
+    }
+
+    // Issues can be read by anyone, created by anyone, and updated/deleted only by the reporter or an admin
     match /{collection}/{issueId} {
       allow read: if true;
       allow create: if true;
 
-      // Allow authenticated users to update the votes field.
-      allow update: if request.auth != null
-                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes']);
-
-      // Disallow delete for now
-      allow delete: if false;
-
-      // Votes subcollection
+      // Allow updates/deletes if user is the original reporter
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.reporterId;
+      
+      // Allow voting by any authenticated user
       match /votes/{userId} {
-        // A user can only create/update/delete their own vote
-        allow write: if request.auth != null && request.auth.uid == userId;
-        allow read: if request.auth != null; // Allow reading to check vote status
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Users can only manage their own data
+    match /users/{userId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+
+      // Notifications:
+      // - A user can read/delete their own notifications
+      // - Any authenticated user can create a notification for another user (for votes, etc.)
+      match /notifications/{notificationId} {
+        allow read, delete: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null;
+      }
+      
+      // Saved Issues:
+      // - A user can manage their own saved issues
+      match /savedIssues/{issueId} {
+        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
       }
     }
   }
