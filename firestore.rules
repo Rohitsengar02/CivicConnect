@@ -1,50 +1,43 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Districts can be read by anyone, but only created/modified by admins (future-proof)
+    
+    // Admins: Only one admin per district
+    match /admins/{adminId} {
+      allow read;
+      // Allow create if the user is authenticated and no other admin for that district exists.
+      allow create: if request.auth != null && 
+                       !exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+                       !districtAlreadyHasAdmin(request.resource.data.district);
+      allow update, delete: if request.auth.uid == adminId;
+    }
+
+    // Districts: Publicly readable list of districts
     match /districts/{districtId} {
-      allow read: if true;
-      allow write: if false; // For now, manage this manually in the console
+      allow read;
+      allow write: if false; // Should be managed from the console
     }
 
-    // Admins collection
-    match /admins/{userId} {
-      // Any authenticated user can attempt to create an admin profile
-      allow create: if request.auth != null
-                    // Ensure the district being claimed exists
-                    && exists(/databases/$(database)/documents/districts/$(request.resource.data.district))
-                    // Crucially, ensure no other admin has already claimed this district
-                    && !existsAfter(/databases/$(database)/documents/admins?district=$(request.resource.data.district));
-      
-      // Admins can only read/update their own data
-      allow read, update: if request.auth.uid == userId;
-      allow delete: if false; // Prevent admins from deleting their own accounts
-    }
-
-    // Issues collection
+    // Issues: User-submitted reports
     match /issues/{issueId} {
-      // Anyone can view reported issues
-      allow read: if true;
-      
-      // Only authenticated users can create an issue
+      allow read;
       allow create: if request.auth != null;
-      
-      // Only the original reporter or an admin can update an issue
-      allow update: if request.auth.uid == resource.data.reporterId || get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin';
-
-      // Only the original reporter or an admin can delete an issue
-      allow delete: if request.auth.uid == resource.data.reporterId || get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin';
+      allow update: if request.auth.uid == resource.data.reporterId || 
+                       exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      allow delete: if request.auth.uid == resource.data.reporterId ||
+                       exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    
+    // Users: Can only manage their own profile
+    match /users/{userId} {
+      allow read;
+      allow create: if request.auth.uid == userId;
+      allow update, delete: if request.auth.uid == userId;
     }
 
-    // Users (Citizen Profiles) collection
-    match /users/{userId} {
-      // A user can only be created if the user is authenticated
-      allow create: if request.auth.uid == userId;
-      
-      // A user can only read, update, or delete their own profile
-      allow read, update, delete: if request.auth.uid == userId;
+    // Helper function to check for existing admins in a district
+    function districtAlreadyHasAdmin(district) {
+      return getAfter(/databases/$(database)/documents/admins/$(request.auth.uid)).data.district == district;
     }
   }
 }
