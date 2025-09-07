@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getFirestore, collection, query, where, getDocs, doc, updateDoc, writeBatch } from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
 import { app } from "@/lib/firebase";
 import {
   Card,
@@ -19,7 +19,6 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
@@ -47,7 +46,7 @@ export default function ApproveAdminsPage() {
   useEffect(() => {
     const userRole = sessionStorage.getItem('userRole');
     if (userRole !== 'superadmin') {
-      router.push('/admin'); // Redirect if not superadmin
+      router.push('/admin/dashboard'); // Redirect if not superadmin
       return;
     }
 
@@ -59,6 +58,7 @@ export default function ApproveAdminsPage() {
         const pendingApps = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AdminApplication));
         setApplications(pendingApps);
       } catch (error) {
+        console.error("Error fetching applications: ", error);
         toast({
           title: "Error",
           description: "Failed to fetch pending applications.",
@@ -93,7 +93,7 @@ export default function ApproveAdminsPage() {
   };
 
   if (isLoading) {
-    return <div>Loading applications...</div>;
+    return <div className="p-4">Loading applications...</div>;
   }
 
   return (
