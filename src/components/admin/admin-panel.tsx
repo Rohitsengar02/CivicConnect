@@ -172,16 +172,18 @@ export function AdminPanel() {
     }
   };
 
-  const onLoginSubmit = async (data: LoginValues) => {
+ const onLoginSubmit = async (data: LoginValues) => {
     setIsLoading(true);
     setError(null);
 
+    // Super Admin check
     if (data.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL && data.password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
         sessionStorage.setItem('userRole', 'superadmin');
         router.push('/admin/dashboard');
         return;
     }
 
+    // District Admin check
     try {
         const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
         const user = userCredential.user;
@@ -191,23 +193,31 @@ export function AdminPanel() {
 
         if (adminDoc.exists()) {
             const adminData = adminDoc.data();
-            if (adminData.status === 'approved') {
+            if (adminData.role === 'admin' && adminData.status === 'approved') {
                 sessionStorage.setItem('userRole', 'admin');
                 router.push('/admin/dashboard');
             } else if (adminData.status === 'pending') {
                 setError("Your application is still pending approval.");
+            } else if (adminData.status === 'rejected') {
+                setError("Your application has been rejected.");
             } else {
-                 setError("Your application has been rejected.");
+                setError("You do not have the required permissions to log in.");
             }
         } else {
             setError("No admin account found for this user.");
         }
     } catch (error: any) {
-        setError("Invalid email or password.");
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+            setError("Invalid email or password.");
+        } else {
+            setError("An unexpected error occurred during login.");
+            console.error(error);
+        }
     } finally {
         setIsLoading(false);
     }
-  };
+};
+
 
 
   const renderStep = () => {
