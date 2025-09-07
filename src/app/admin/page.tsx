@@ -51,7 +51,7 @@ export default function AdminDashboardPage() {
             <Carousel opts={{ align: "start" }} className="w-full max-w-full">
                 <CarouselContent>
                     {statCards.map((card, index) => (
-                        <CarouselItem key={index} className="basis-[90%] pl-4">
+                        <CarouselItem key={index} className="basis-[90%] pl-4 pr-2">
                             <Card>
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                     <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
@@ -84,8 +84,8 @@ export default function AdminDashboardPage() {
             ))}
        </div>
 
-       <div className="grid gap-8 lg:grid-cols-5">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="lg:col-span-3">
+       <div className="grid gap-8 lg:grid-cols-2 xl:grid-cols-5">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="lg:col-span-1 xl:col-span-3">
                 <Card>
                     <CardHeader>
                         <CardTitle>Issues Reported Over Time</CardTitle>
@@ -103,7 +103,7 @@ export default function AdminDashboardPage() {
                     </CardContent>
                 </Card>
             </motion.div>
-             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="lg:col-span-2">
+             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="lg:col-span-1 xl:col-span-2">
                 <Card>
                     <CardHeader>
                         <CardTitle>Issues by Status</CardTitle>
