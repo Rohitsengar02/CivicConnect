@@ -14,12 +14,16 @@ import {
 import type { Filters } from "@/app/explore/page";
 import { LayoutGrid, LayoutList } from "lucide-react";
 import { Button } from "./ui/button";
+import { useAuth } from "@/hooks/use-auth";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
 
 interface ExploreFiltersProps {
     onFilterChange: (filters: Filters) => void;
 }
 
 export function ExploreFilters({ onFilterChange }: ExploreFiltersProps) {
+  const { user } = useAuth();
   const [selectedState, setSelectedState] = useState("");
   const [districts, setDistricts] = useState<string[]>([]);
   const [currentFilters, setCurrentFilters] = useState<Filters>({ sortBy: 'newest' });
@@ -29,12 +33,31 @@ export function ExploreFilters({ onFilterChange }: ExploreFiltersProps) {
   }, [currentFilters, onFilterChange]);
 
 
+  const updateUserLocation = async (state: string, district: string) => {
+    if (user) {
+      const userRef = doc(db, "users", user.uid);
+      try {
+        await updateDoc(userRef, { state, district });
+      } catch (error) {
+        console.error("Error updating user location:", error);
+      }
+    }
+  };
+
+
   const handleStateChange = (stateName: string) => {
     setSelectedState(stateName);
     const selectedStateData = states.find(s => s.state === stateName);
     setDistricts(selectedStateData ? selectedStateData.districts : []);
     handleFilterChange('state', stateName);
     handleFilterChange('district', undefined); // Reset district
+  };
+  
+  const handleDistrictChange = (districtName: string) => {
+    handleFilterChange('district', districtName);
+    if (selectedState && districtName) {
+      updateUserLocation(selectedState, districtName);
+    }
   };
 
   const handleFilterChange = (filterName: keyof Filters, value: string | undefined) => {
@@ -60,20 +83,7 @@ export function ExploreFilters({ onFilterChange }: ExploreFiltersProps) {
       value: "district",
       options: districts.map(d => ({ value: d, label: d })),
       disabled: !selectedState,
-      onChange: (value: string) => handleFilterChange('district', value)
-    },
-    {
-      label: "Category",
-      value: "category",
-      options: [
-        { value: "Roads", label: "Roads" },
-        { value: "Sanitation", label: "Sanitation" },
-        { value: "Electricity", label: "Electricity" },
-        { value: "Water Supply", label: "Water Supply" },
-        { value: "Public Safety", label: "Public Safety" },
-        { value: "Parks", label: "Parks" },
-      ],
-      onChange: (value: string) => handleFilterChange('category', value)
+      onChange: handleDistrictChange
     },
      {
       label: "Status",
@@ -100,7 +110,7 @@ export function ExploreFilters({ onFilterChange }: ExploreFiltersProps) {
 
   return (
     <div className="mb-8 flex flex-col gap-4 rounded-xl border bg-card/50 p-4 backdrop-blur-lg md:flex-row md:items-center md:justify-between">
-      <div className="flex-1 overflow-x-auto md:overflow-visible pb-2">
+      <div className="flex-1 overflow-x-auto md:overflow-visible pb-2 no-scrollbar">
         <div className="flex gap-4 md:items-center">
           {filterOptions.map(filter => (
              <Select

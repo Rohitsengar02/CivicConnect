@@ -12,6 +12,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Filters } from "@/app/explore/page";
+import { useAuth } from "@/hooks/use-auth";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
 
 
 interface HomeFiltersProps {
@@ -19,6 +22,7 @@ interface HomeFiltersProps {
 }
 
 export function HomeFilters({ onFilterChange }: HomeFiltersProps) {
+  const { user } = useAuth();
   const [selectedState, setSelectedState] = useState("");
   const [districts, setDistricts] = useState<string[]>([]);
   const [currentFilters, setCurrentFilters] = useState<Filters>({ sortBy: 'newest' });
@@ -26,6 +30,17 @@ export function HomeFilters({ onFilterChange }: HomeFiltersProps) {
   useEffect(() => {
     onFilterChange(currentFilters);
   }, [currentFilters, onFilterChange]);
+  
+  const updateUserLocation = async (state: string, district: string) => {
+    if (user) {
+      const userRef = doc(db, "users", user.uid);
+      try {
+        await updateDoc(userRef, { state, district });
+      } catch (error) {
+        console.error("Error updating user location:", error);
+      }
+    }
+  };
 
   const handleStateChange = (stateName: string) => {
     setSelectedState(stateName);
@@ -33,6 +48,13 @@ export function HomeFilters({ onFilterChange }: HomeFiltersProps) {
     setDistricts(selectedStateData ? selectedStateData.districts : []);
     handleFilterChange('state', stateName);
     handleFilterChange('district', undefined); // Reset district when state changes
+  };
+  
+  const handleDistrictChange = (districtName: string) => {
+    handleFilterChange('district', districtName);
+    if (selectedState && districtName) {
+      updateUserLocation(selectedState, districtName);
+    }
   };
 
   const handleFilterChange = (filterName: keyof Filters, value: string | undefined) => {
@@ -58,17 +80,7 @@ export function HomeFilters({ onFilterChange }: HomeFiltersProps) {
       value: "district",
       options: districts.map(d => ({ value: d, label: d })),
       disabled: !selectedState,
-      onChange: (value: string) => handleFilterChange('district', value)
-    },
-    {
-      label: "Category",
-      value: "category",
-      options: [
-        { value: "Roads", label: "Roads" },
-        { value: "Sanitation", label: "Sanitation" },
-        { value: "Electricity", label: "Electricity" },
-      ],
-      onChange: (value: string) => handleFilterChange('category', value)
+      onChange: handleDistrictChange
     },
     {
       label: "Sort by",
@@ -84,7 +96,7 @@ export function HomeFilters({ onFilterChange }: HomeFiltersProps) {
 
   return (
     <div className="mb-8 flex flex-col gap-4 rounded-xl border bg-card/50 p-4 shadow-lg backdrop-blur-lg md:flex-row md:items-center">
-      <div className="flex-1 overflow-x-auto md:overflow-visible pb-2">
+      <div className="flex-1 overflow-x-auto md:overflow-visible pb-2 no-scrollbar">
         <div className="flex gap-4 md:items-center">
           {filterOptions.map(filter => (
             <Select
