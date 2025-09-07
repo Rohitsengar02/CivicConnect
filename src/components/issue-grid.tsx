@@ -46,13 +46,15 @@ export async function IssueGrid() {
   
   const issuesWithClientProps = issues.map((issue) => ({
     ...issue,
-    id: issue.id,
+    createdAt: issue.createdAt.toDate().toISOString(), // Convert Timestamp to ISO string
+    id: issue.id.toString(), // Ensure id is a string, just in case
     reporter: issue.reporterName || "Anonymous",
     avatarUrl: issue.avatarUrl || null,
     imageUrl: issue.imageUrls?.[0] || "https://picsum.photos/800/600",
     time: issue.createdAt.toDate().toLocaleDateString(),
     aiHint: issue.aiHint || "issue image",
   }));
+
 
   return (
     <section className="py-4">

@@ -14,7 +14,7 @@ import { Button } from "./ui/button";
 type IssueStatus = "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
 
 type Issue = {
-  id: number;
+  id: string; // Changed from number to string
   reporter: string;
   avatarUrl: string | null;
   time: string;
@@ -25,6 +25,7 @@ type Issue = {
   status: IssueStatus;
   description: string;
   aiHint: string;
+  createdAt: string; // Added createdAt as string
 };
 
 type IssueCardProps = {
@@ -130,7 +131,7 @@ export function IssueCard({ issue }: IssueCardProps) {
                   </Avatar>
                   <div>
                       <p className="font-semibold">{issue.reporter}</p>
-                      <p className="text-xs text-muted-foreground">{issue.time}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(issue.createdAt).toLocaleDateString()}</p>
                   </div>
               </div>
               <div className="flex items-center gap-1">

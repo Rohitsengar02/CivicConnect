@@ -1,10 +1,11 @@
+
 "use client";
 
 import { motion } from "framer-motion";
 import { IssueCard } from "./issue-card";
 
 type Issue = {
-  id: number;
+  id: string; // Changed from number to string to match Firestore ID
   reporter: string;
   avatarUrl: string | null;
   time: string;
@@ -15,6 +16,7 @@ type Issue = {
   status: "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
   description: string;
   aiHint: string;
+  createdAt: string; // Changed from Timestamp to string
 };
 
 export function IssueGridClient({ issues }: { issues: Issue[] }) {
