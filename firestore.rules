@@ -1,33 +1,28 @@
-
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
 
-    // Admins can be read by any authenticated user, but only created/updated under strict rules.
     match /admins/{adminId} {
-      allow read: if request.auth != null;
-      // Allow creation only if status is 'pending' and the district isn't already taken.
-      allow create: if request.resource.data.status == 'pending' 
-                    && !exists(/databases/$(database)/documents/districtAdmins/$(request.resource.data.state + '-' + request.resource.data.district));
-      // Allow admins to update their own profiles, or superadmin to update any.
-      // Superadmin role is checked on the client, so for rules, we check if the user is authenticated.
-      // A more secure rule would be to have a 'role' field and check for 'superadmin'.
-      allow update: if request.auth != null; 
-      allow delete: if false; // Generally, don't allow deletion of admin records.
+      allow read, write: if false; // Should be managed by superadmin
     }
-
-    // This collection ensures district uniqueness.
+    
     match /districtAdmins/{districtId} {
-      allow read: if request.auth != null;
-      // Can only be created if the adminId matches the authenticated user.
-      allow create: if request.resource.data.adminId == request.auth.uid;
-      allow write: if request.auth != null;
+       allow read, write: if false; // Should be managed by superadmin
     }
 
-    // Fallback rule to deny all other access
-    match /{document=**} {
-      allow read, write: if false;
+    match /anonymousIssues/{issueId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if false; // Anonymous issues cannot be changed
+    }
+    
+    match /profiledIssues/{issueId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && request.resource.data.reporterId == request.auth.uid;
     }
   }
 }

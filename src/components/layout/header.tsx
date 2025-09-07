@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Building2, Menu, Bell } from "lucide-react";
+import { Building2, Menu, Bell, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,10 +12,21 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { ThemeToggle } from "../theme-toggle";
+import { useAuth } from "@/hooks/use-auth";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -58,8 +70,38 @@ export function Header() {
                 <span className="sr-only">Notifications</span>
             </Button>
            </Link>
-          <Button variant="ghost">Log In</Button>
-          <Button>Sign Up</Button>
+           {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                  <Avatar>
+                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || "User"} />
+                    <AvatarFallback>{user.displayName?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{user.displayName}</p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+           ) : (
+            <>
+              <Button asChild variant="ghost"><Link href="/login">Log In</Link></Button>
+              <Button asChild><Link href="/signup">Sign Up</Link></Button>
+            </>
+           )}
         </div>
 
         <div className="md:hidden">
@@ -84,8 +126,14 @@ export function Header() {
                     <span className="text-lg font-medium">Theme</span>
                     <ThemeToggle />
                   </div>
-                  <Button variant="ghost">Log In</Button>
-                  <Button>Sign Up</Button>
+                   {user ? (
+                      <Button onClick={() => { logout(); setMobileMenuOpen(false); }}>Logout</Button>
+                   ) : (
+                    <>
+                      <Button asChild variant="ghost"><Link href="/login" onClick={() => setMobileMenuOpen(false)}>Log In</Link></Button>
+                      <Button asChild><Link href="/signup" onClick={() => setMobileMenuOpen(false)}>Sign Up</Link></Button>
+                    </>
+                   )}
                 </div>
               </div>
             </SheetContent>

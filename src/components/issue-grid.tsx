@@ -19,18 +19,31 @@ interface Issue {
 
 async function getIssues() {
   const db = getFirestore(app);
-  const issuesCol = collection(db, "issues");
-  const issueSnapshot = await getDocs(issuesCol);
-  const issueList = issueSnapshot.docs.map(doc => ({
+  
+  const profiledIssuesCol = collection(db, "profiledIssues");
+  const anonymousIssuesCol = collection(db, "anonymousIssues");
+
+  const [profiledSnapshot, anonymousSnapshot] = await Promise.all([
+    getDocs(profiledIssuesCol),
+    getDocs(anonymousIssuesCol)
+  ]);
+
+  const profiledList = profiledSnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data()
   } as Issue));
-  return issueList;
+
+  const anonymousList = anonymousSnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as Issue));
+  
+  return [...profiledList, ...anonymousList];
 }
 
 export async function IssueGrid() {
   const issues = await getIssues();
-
+  
   const issuesWithClientProps = issues.map((issue) => ({
     ...issue,
     id: issue.id,
@@ -43,7 +56,7 @@ export async function IssueGrid() {
 
   return (
     <section className="py-4">
-        <IssueGridClient issues={issuesWithClientProps} />
+        <IssueGridClient issues={issuesWithClient-props} />
     </section>
   );
 }

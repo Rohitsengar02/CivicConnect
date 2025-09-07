@@ -1,10 +1,33 @@
 
+"use client";
+
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { ReportIssueForm } from "@/components/report-issue-form";
 import { Footer } from "@/components/layout/footer";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
-export default function ReportIssuePage() {
+function ReportIssueContent() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
       <Header />
@@ -17,4 +40,13 @@ export default function ReportIssuePage() {
       <MobileNav />
     </div>
   );
+}
+
+
+export default function ReportIssuePage() {
+    return (
+        <AuthProvider>
+            <ReportIssueContent />
+        </AuthProvider>
+    )
 }

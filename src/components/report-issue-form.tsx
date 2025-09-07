@@ -8,7 +8,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Shield, Upload, X, ChevronsUpDown, Check, MapPin, Loader2 } from "lucide-react";
+import { User, Shield, Upload, X, MapPin, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { db, storage } from "@/lib/firebase";
@@ -21,20 +21,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { IssueSubmittedDialog } from "./issue-submitted-dialog";
 import { states } from "@/lib/india-states-districts";
 import Map from "./map";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 const reportIssueSchema = z.object({
   reportType: z.enum(["profiled", "anonymous"]),
   reporterName: z.string().optional(),
   reporterEmail: z.string().email().optional(),
-  avatar: z.any().optional(),
   state: z.string({ required_error: "Please select a state." }),
   district: z.string({ required_error: "Please select a district." }),
   address: z.string().min(10, "A detailed address is required."),
@@ -51,10 +48,10 @@ interface Location {
 }
 
 export function ReportIssueForm() {
+    const { user } = useAuth();
     const [reportType, setReportType] = useState<"profiled" | "anonymous">("anonymous");
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [imageFiles, setImageFiles] = useState<File[]>([]);
-    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionData, setSubmissionData] = useState<{ issueId: string; issueTitle: string } | null>(null);
     const [location, setLocation] = useState<Location | null>(null);
@@ -116,6 +113,13 @@ export function ReportIssueForm() {
         }
     }, [form, toast]);
 
+    useEffect(() => {
+        if (reportType === 'profiled' && user) {
+            form.setValue('reporterName', user.displayName || '');
+            form.setValue('reporterEmail', user.email || '');
+        }
+    }, [reportType, user, form]);
+
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
@@ -135,14 +139,6 @@ export function ReportIssueForm() {
         const newImagePreviews = newImageFiles.map(file => URL.createObjectURL(file));
         setImagePreviews(newImagePreviews);
     };
-
-    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            setAvatarPreview(URL.createObjectURL(file));
-            form.setValue("avatar", file);
-        }
-    }
     
     const onSubmit = async (data: ReportIssueFormValues) => {
         if (!hasLocationPermission || !location) {
@@ -155,7 +151,6 @@ export function ReportIssueForm() {
         }
         setIsSubmitting(true);
         try {
-            // 1. Upload images to Firebase Storage
             const imageUrls = await Promise.all(
                 imageFiles.map(async (file) => {
                     const storageRef = ref(storage, `issues/${Date.now()}-${file.name}`);
@@ -164,18 +159,27 @@ export function ReportIssueForm() {
                 })
             );
 
-            // 2. Add issue to Firestore
-            const issueData = {
-                ...data,
+            let collectionName = 'anonymousIssues';
+            const issueData: any = {
+                title: data.title,
+                description: data.description,
+                address: data.address,
+                state: data.state,
+                district: data.district,
                 imageUrls,
                 location,
                 status: "Pending",
                 createdAt: serverTimestamp(),
             };
-            delete issueData.images; // remove file list
-            delete issueData.avatar; // handle avatar separately if needed
 
-            const docRef = await addDoc(collection(db, "issues"), issueData);
+            if (data.reportType === 'profiled' && user) {
+                collectionName = 'issues';
+                issueData.reporterId = user.uid;
+                issueData.reporterName = user.displayName;
+                issueData.reporterEmail = user.email;
+            }
+
+            const docRef = await addDoc(collection(db, collectionName), issueData);
             setSubmissionData({ issueId: docRef.id, issueTitle: data.title });
 
         } catch (error) {
@@ -194,7 +198,6 @@ export function ReportIssueForm() {
         form.reset({ reportType: 'anonymous', images: [] });
         setImagePreviews([]);
         setImageFiles([]);
-        setAvatarPreview(null);
         setSubmissionData(null);
         router.push('/');
     }
@@ -267,11 +270,11 @@ export function ReportIssueForm() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <Label htmlFor="reporterName">Full Name</Label>
-                                            <Input id="reporterName" {...form.register("reporterName")} placeholder="John Doe" />
+                                            <Input id="reporterName" {...form.register("reporterName")} readOnly />
                                         </div>
                                         <div>
                                             <Label htmlFor="reporterEmail">Email</Label>
-                                            <Input id="reporterEmail" type="email" {...form.register("reporterEmail")} placeholder="john.doe@example.com" />
+                                            <Input id="reporterEmail" type="email" {...form.register("reporterEmail")} readOnly />
                                         </div>
                                     </div>
                                 </motion.div>
@@ -356,5 +359,3 @@ export function ReportIssueForm() {
         </>
     );
 }
-
-    
