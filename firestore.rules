@@ -3,46 +3,86 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ---------- Helper Functions ----------
+    // Check if the user is a Super Admin
     function isSuperAdmin() {
-      return get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'superadmin';
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'superadmin';
     }
 
+    // Check if the user is an Admin
     function isAdmin() {
       return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    // ---------- Admins Collection ----------
     match /admins/{adminId} {
-      allow read, write: if isSuperAdmin();
+      allow read: if request.auth != null;               // Any logged-in user can read admin info
+      allow create: if request.auth.uid == adminId;      // Only user can create their own admin doc
+      allow update: if isSuperAdmin();                   // Only super admin can update
+      allow delete: if false;                            // No deletion allowed
     }
 
+    // ---------- District Admins Collection ----------
     match /districtAdmins/{docId} {
-      allow read, write: if false;
+      allow get: if request.auth != null;                // Check existence
+      allow create: if request.auth.uid == request.resource.data.adminId;
+      allow list, update, delete: if false;              // Managed only by backend
     }
 
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth.uid == userId;
+    // ---------- Users Collection ----------
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Saved Issues
+      match /savedIssues/{issueId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Notifications
+      match /notifications/{notificationId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null;
+        allow update, delete: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
+    // ---------- Legacy Issues Collection ----------
+    match /issues/{issueId} {
+      allow read: if true;                  // Public read
+      allow write: if request.auth != null; // Any logged-in user can write
+    }
+
+    // ---------- Anonymous Issues ----------
     match /anonymousIssues/{issueId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if isAdmin();
-      allow delete: if isSuperAdmin();
-    }
-    
-    match /anonymousIssues/{issueId}/votes/{userId} {
-      allow read, write: if request.auth.uid == userId;
+      allow read: if true;                   // Public can fetch
+      allow create: if request.auth != null; // Only logged-in users can create
+      allow update: if isAdmin();            // Admins can update status
+      allow delete: if isSuperAdmin();       // Only super admin can delete
+
+      // Votes on anonymous issues
+      match /votes/{userId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
+    // ---------- Profiled Issues ----------
     match /profiledIssues/{issueId} {
-      allow read: if true;
-      allow create: if request.auth.uid == request.resource.data.reporterId;
+      allow read: if true;                   // Public can fetch issues
+      allow create: if request.auth != null &&
+                    request.auth.uid == request.resource.data.reporterId;
+
+      // Admin can update status
       allow update: if isAdmin();
-      allow delete: if request.auth.uid == resource.data.reporterId || isSuperAdmin();
-    }
-    
-    match /profiledIssues/{issueId}/votes/{userId} {
-      allow read, write: if request.auth.uid == userId;
+
+      // Reporter or super admin can delete
+      allow delete: if request.auth != null &&
+                    (request.auth.uid == resource.data.reporterId || isSuperAdmin());
+
+      // Votes for profiled issues
+      match /votes/{userId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
   }
 }
