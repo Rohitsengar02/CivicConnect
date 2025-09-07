@@ -8,8 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
-import { ListChecks, CheckCircle, Clock, Users } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Pie, PieChart, Cell } from "recharts";
 import { motion } from "framer-motion";
@@ -36,54 +34,9 @@ const pieChartData = [
   { name: 'Resolved', value: 987, color: 'hsl(var(--chart-1))' },
 ];
 
-const statCards = [
-    { title: "Total Issues", value: "0", change: "", icon: ListChecks },
-    { title: "Resolved Issues", value: "0", change: "", icon: CheckCircle },
-    { title: "Pending Issues", value: "0", change: "", icon: Clock },
-    { title: "Active Users", value: "0", change: "", icon: Users },
-];
-
 export default function AdminDashboardPage() {
   return (
     <div className="grid auto-rows-max items-start gap-4 md:gap-8 lg:col-span-2">
-       {/* Stat Cards - Carousel on Mobile, Grid on Desktop */}
-       <div className="sm:hidden -ml-4">
-            <Carousel opts={{ align: "start" }} className="w-full max-w-full">
-                <CarouselContent>
-                    {statCards.map((card, index) => (
-                        <CarouselItem key={index} className="basis-[90%] pl-4 pr-2">
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-                                    <card.icon className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold">{card.value}</div>
-                                    <p className="text-xs text-muted-foreground">{card.change}</p>
-                                </CardContent>
-                            </Card>
-                        </CarouselItem>
-                    ))}
-                </CarouselContent>
-            </Carousel>
-       </div>
-       <div className="hidden sm:grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {statCards.map((card, index) => (
-                 <motion.div key={index} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }}>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-                            <card.icon className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{card.value}</div>
-                            <p className="text-xs text-muted-foreground">{card.change}</p>
-                        </CardContent>
-                    </Card>
-                 </motion.div>
-            ))}
-       </div>
-
        <div className="grid gap-8 lg:grid-cols-2 xl:grid-cols-5">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="lg:col-span-1 xl:col-span-3">
                 <Card>
