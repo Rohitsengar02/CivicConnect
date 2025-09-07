@@ -12,10 +12,9 @@ import {
   getDocs,
   query,
   where,
-  addDoc,
   doc,
-  setDoc,
   getDoc,
+  writeBatch,
 } from "firebase/firestore";
 import {
   getAuth,
@@ -117,10 +116,10 @@ export function AdminPanel() {
     setIsLoading(true);
     setError(null);
     try {
-      const q = query(collection(db, "admins"), where("district", "==", data.district));
-      const querySnapshot = await getDocs(q);
+      const districtAdminRef = doc(db, "districtAdmins", data.district);
+      const districtAdminDoc = await getDoc(districtAdminRef);
       
-      if (!querySnapshot.empty) {
+      if (districtAdminDoc.exists()) {
         setError(`An admin for ${districts.find(d=>d.value === data.district)?.label} already exists.`);
       } else {
         setSelectedDistrict(data.district);
@@ -137,17 +136,38 @@ export function AdminPanel() {
     setIsLoading(true);
     setError(null);
     try {
+      // Check if district is already taken one more time before creating user
+      const districtAdminRef = doc(db, "districtAdmins", selectedDistrict);
+      const districtAdminDoc = await getDoc(districtAdminRef);
+      if (districtAdminDoc.exists()) {
+        setError(`An admin for this district was just registered. Please select another.`);
+        setIsLoading(false);
+        setStep(2);
+        return;
+      }
+
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const user = userCredential.user;
 
-      await setDoc(doc(db, "admins", user.uid), {
+      const batch = writeBatch(db);
+
+      const newAdminRef = doc(db, "admins", user.uid);
+      batch.set(newAdminRef, {
         name: data.name,
         email: data.email,
         district: selectedDistrict,
         role: "admin",
-        status: "pending", // New status
+        status: "pending",
         createdAt: new Date(),
       });
+
+      const newDistrictAdminRef = doc(db, "districtAdmins", selectedDistrict);
+      batch.set(newDistrictAdminRef, {
+          adminId: user.uid,
+          districtName: districts.find(d => d.value === selectedDistrict)?.label,
+      });
+
+      await batch.commit();
       
       toast({
         title: "Registration Successful!",
@@ -178,7 +198,7 @@ export function AdminPanel() {
 
         if (adminDoc.exists()) {
             const adminData = adminDoc.data();
-            if (adminData.status === 'approved') {
+            if (adminData.role === 'superadmin' || adminData.status === 'approved') {
                 setSelectedDistrict(adminData.district);
                 setStep(5); // Go to dashboard
             } else if (adminData.status === 'pending') {
@@ -311,7 +331,7 @@ export function AdminPanel() {
             className="p-4"
           >
             <div className="flex justify-between items-center mb-6">
-                 <h1 className="font-headline text-3xl font-bold">Dashboard for {districts.find(d=>d.value === selectedDistrict)?.label}</h1>
+                 <h1 className="font-headline text-3xl font-bold">Dashboard for {districts.find(d=>d.value === selectedDistrict)?.label || 'All Districts'}</h1>
                  <Button variant="outline" onClick={() => { setStep(1); setSelectedDistrict(""); setError(null); auth.signOut(); }}>Log Out</Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -376,5 +396,3 @@ export function AdminPanel() {
     </Card>
   );
 }
-
-    
