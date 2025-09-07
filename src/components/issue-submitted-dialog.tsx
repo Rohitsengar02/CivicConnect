@@ -48,7 +48,7 @@ export function IssueSubmittedDialog({
           </div>
           <DialogTitle className="text-center text-2xl font-headline mt-4">
             Issue Reported Successfully!
-          </"DialogTitle>
+          </DialogTitle>
           <DialogDescription className="text-center">
             Your report for "{issueTitle}" has been submitted. Thank you for helping improve your community.
           </DialogDescription>
