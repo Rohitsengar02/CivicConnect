@@ -8,7 +8,7 @@ export default function Home() {
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
       <Header />
-      <main className="flex-1 pt-20">
+      <main className="flex-1 pt-20 pb-24 md:pb-0">
         <HeroSection />
         <div className="container z-10 mx-auto mt-8 px-4">
           <HomeFilters />

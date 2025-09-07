@@ -64,7 +64,7 @@ export default function IssueDetailPage({ params }: { params: { id: string } }) 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
       <Header />
-      <main className="flex-1 pt-20">
+      <main className="flex-1 pt-20 pb-24 md:pb-0">
         <div className="container mx-auto px-4 py-8">
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
                 {/* Image Gallery */}
