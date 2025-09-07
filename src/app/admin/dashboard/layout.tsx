@@ -37,7 +37,7 @@ export default function AdminDashboardLayout({
       {role && <AdminSidebar userRole={role} />}
       <div className="flex flex-col flex-1 sm:ml-56">
         {role && <AdminHeader userRole={role} />}
-        <main className="flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8 pb-24 sm:pb-0">
+        <main className="flex-1 items-start gap-4 p-4 sm:px-6 sm:py-6 md:gap-8 pb-24 sm:pb-6">
           {children}
         </main>
       </div>
