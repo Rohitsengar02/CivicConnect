@@ -15,6 +15,7 @@ import {
   addDoc,
   doc,
   setDoc,
+  getDoc,
 } from "firebase/firestore";
 import {
   getAuth,
@@ -35,10 +36,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { BarChart, ListChecks, Users, AlertCircle } from "lucide-react";
+import { BarChart, ListChecks, Users, AlertCircle, LogIn } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { useToast } from "@/hooks/use-toast";
+
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address."),
+  password: z.string().min(1, "Password is required."),
+});
 
 const districtSelectionSchema = z.object({
   district: z.string().min(1, "Please select a district."),
@@ -50,6 +56,7 @@ const registrationSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters."),
 });
 
+type LoginValues = z.infer<typeof loginSchema>;
 type DistrictSelectionValues = z.infer<typeof districtSelectionSchema>;
 type RegistrationValues = z.infer<typeof registrationSchema>;
 
@@ -69,7 +76,7 @@ const chartConfig = {
 };
 
 export function AdminPanel() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(1); // 1: Login/Register Choice, 2: District Select, 3: Register Form, 4: Login Form, 5: Dashboard
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [districts, setDistricts] = useState<{ value: string; label: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,42 +109,25 @@ export function AdminPanel() {
     fetchDistricts();
   }, [db, toast]);
 
-
-  const districtForm = useForm<DistrictSelectionValues>({
-    resolver: zodResolver(districtSelectionSchema),
-  });
-
-  const registrationForm = useForm<RegistrationValues>({
-    resolver: zodResolver(registrationSchema),
-  });
+  const loginForm = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
+  const districtForm = useForm<DistrictSelectionValues>({ resolver: zodResolver(districtSelectionSchema) });
+  const registrationForm = useForm<RegistrationValues>({ resolver: zodResolver(registrationSchema) });
 
   const onDistrictSubmit = async (data: DistrictSelectionValues) => {
     setIsLoading(true);
     setError(null);
     try {
-      // Check if an admin for this district already exists
-      const adminsRef = collection(db, "admins");
-      const q = query(adminsRef, where("district", "==", data.district));
+      const q = query(collection(db, "admins"), where("district", "==", data.district));
       const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
-        setError(`An admin for ${districts.find(d=>d.value === data.district)?.label} already exists. This district is not available.`);
-        toast({
-            variant: "destructive",
-            title: "District Unavailable",
-            description: `An admin account for this district has already been registered.`,
-        });
+        setError(`An admin for ${districts.find(d=>d.value === data.district)?.label} already exists.`);
       } else {
         setSelectedDistrict(data.district);
-        setStep(2);
+        setStep(3); // Go to registration form
       }
     } catch (err) {
-      setError("An error occurred while verifying the district. Please try again.");
-       toast({
-            variant: "destructive",
-            title: "Verification Error",
-            description: "Could not verify the selected district. Please check your connection.",
-        });
+      setError("An error occurred while verifying the district.");
     } finally {
         setIsLoading(false);
     }
@@ -147,99 +137,122 @@ export function AdminPanel() {
     setIsLoading(true);
     setError(null);
     try {
-      // 1. Create user in Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const user = userCredential.user;
 
-      // 2. Add admin document to Firestore
       await setDoc(doc(db, "admins", user.uid), {
         name: data.name,
         email: data.email,
         district: selectedDistrict,
         role: "admin",
+        status: "pending", // New status
         createdAt: new Date(),
       });
       
       toast({
         title: "Registration Successful!",
-        description: "Your admin account has been created.",
+        description: "Your application has been submitted and is pending approval.",
       });
       
-      setStep(3); // Proceed to dashboard
+      setStep(1); // Go back to main choice
     } catch (error: any) {
-        const errorCode = error.code;
-        if (errorCode === 'auth/email-already-in-use') {
-            setError('This email is already registered. Please use a different email.');
+        if (error.code === 'auth/email-already-in-use') {
+            setError('This email is already registered.');
         } else {
-            setError('An unexpected error occurred during registration. Please try again.');
+            setError('An unexpected error occurred during registration.');
         }
-        toast({
-            variant: "destructive",
-            title: "Registration Failed",
-            description: error.message || 'An unknown error occurred.',
-        });
     } finally {
         setIsLoading(false);
     }
   };
 
+  const onLoginSubmit = async (data: LoginValues) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+        const user = userCredential.user;
+
+        const adminDocRef = doc(db, "admins", user.uid);
+        const adminDoc = await getDoc(adminDocRef);
+
+        if (adminDoc.exists()) {
+            const adminData = adminDoc.data();
+            if (adminData.status === 'approved') {
+                setSelectedDistrict(adminData.district);
+                setStep(5); // Go to dashboard
+            } else if (adminData.status === 'pending') {
+                setError("Your application is still pending approval.");
+            } else {
+                 setError("Your application has been rejected.");
+            }
+        } else {
+            setError("No admin account found for this user.");
+        }
+    } catch (error: any) {
+        setError("Invalid email or password.");
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+
   const renderStep = () => {
     switch (step) {
-      case 1:
+      case 1: // Main choice
         return (
-          <motion.div
-            key="step1"
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 50 }}
-            transition={{ duration: 0.3 }}
-          >
+          <motion.div key="step1" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }}>
             <CardHeader className="text-center">
               <CardTitle className="font-headline text-3xl tracking-tight">Admin Panel</CardTitle>
-              <CardDescription>Select your designated district to proceed.</CardDescription>
+              <CardDescription>Log in or register a new district admin.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <Button size="lg" className="w-full font-bold" onClick={() => setStep(4)}>
+                <LogIn className="mr-2 h-5 w-5"/> Admin Login
+              </Button>
+              <Button size="lg" variant="outline" className="w-full font-bold" onClick={() => setStep(2)}>
+                Register New District
+              </Button>
+            </CardContent>
+          </motion.div>
+        );
+
+      case 2: // District selection
+        return (
+          <motion.div key="step2" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }}>
+            <CardHeader>
+              <CardTitle>Select District</CardTitle>
+              <CardDescription>Choose the district you want to register.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={districtForm.handleSubmit(onDistrictSubmit)} className="space-y-6">
-                <div className="space-y-2">
-                  <Label>District</Label>
-                   <Select onValueChange={(value) => districtForm.setValue('district', value)} defaultValue={districtForm.getValues('district')} disabled={isLoading || districts.length === 0}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={isLoading ? "Loading districts..." : "Select a district"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {districts.map((d) => (
-                          <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  {districtForm.formState.errors.district && <p className="text-sm font-medium text-destructive">{districtForm.formState.errors.district.message}</p>}
-                   {error && <p className="text-sm font-medium text-destructive flex items-center gap-2 mt-2"><AlertCircle className="h-4 w-4"/> {error}</p>}
-                </div>
-                <Button type="submit" size="lg" className="w-full font-bold" disabled={isLoading}>
-                    {isLoading ? "Verifying..." : "Continue"}
-                </Button>
+                <Select onValueChange={(value) => districtForm.setValue('district', value)} defaultValue={districtForm.getValues('district')}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a district" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {districts.map((d) => ( <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem> ))}
+                  </SelectContent>
+                </Select>
+                {districtForm.formState.errors.district && <p className="text-sm font-medium text-destructive">{districtForm.formState.errors.district.message}</p>}
+                {error && <p className="text-sm font-medium text-destructive flex items-center gap-2 mt-2"><AlertCircle className="h-4 w-4"/> {error}</p>}
+                <Button type="submit" className="w-full" disabled={isLoading}>Continue</Button>
+                <Button type="button" variant="ghost" className="w-full" onClick={() => { setStep(1); setError(null); }}>Back</Button>
               </form>
             </CardContent>
           </motion.div>
         );
-      case 2:
+      
+      case 3: // Registration form
         return (
-          <motion.div
-            key="step2"
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 50 }}
-            transition={{ duration: 0.3 }}
-          >
-            <CardHeader className="text-center">
-              <CardTitle className="font-headline text-3xl tracking-tight">Admin Registration for {districts.find(d=>d.value === selectedDistrict)?.label}</CardTitle>
+          <motion.div key="step3" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }}>
+            <CardHeader>
+              <CardTitle>Admin Registration for {districts.find(d=>d.value === selectedDistrict)?.label}</CardTitle>
               <CardDescription>Create your secure admin account.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={registrationForm.handleSubmit(onRegistrationSubmit)} className="space-y-4">
-                <div>
+                 <div>
                   <Label htmlFor="name">Full Name</Label>
                   <Input id="name" {...registrationForm.register("name")} placeholder="John Doe" />
                   {registrationForm.formState.errors.name && <p className="text-sm font-medium text-destructive">{registrationForm.formState.errors.name.message}</p>}
@@ -254,27 +267,52 @@ export function AdminPanel() {
                   <Input id="password" type="password" {...registrationForm.register("password")} placeholder="********" />
                   {registrationForm.formState.errors.password && <p className="text-sm font-medium text-destructive">{registrationForm.formState.errors.password.message}</p>}
                 </div>
-                 {error && <p className="text-sm font-medium text-destructive flex items-center gap-2"><AlertCircle className="h-4 w-4"/> {error}</p>}
-                <Button type="submit" size="lg" className="w-full font-bold" disabled={isLoading}>
-                    {isLoading ? "Creating Account..." : "Create Account & Proceed"}
-                </Button>
-                <Button type="button" variant="ghost" className="w-full" onClick={() => { setStep(1); setError(null); }}>Back to District Selection</Button>
+                {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+                <Button type="submit" className="w-full" disabled={isLoading}>Submit for Approval</Button>
+                <Button type="button" variant="ghost" className="w-full" onClick={() => { setStep(2); setError(null); }}>Back to District Selection</Button>
               </form>
             </CardContent>
           </motion.div>
         );
-      case 3:
+
+      case 4: // Login form
+        return (
+            <motion.div key="step4" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }}>
+                <CardHeader>
+                    <CardTitle>Admin Login</CardTitle>
+                    <CardDescription>Enter your credentials to access the dashboard.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+                        <div>
+                            <Label htmlFor="login-email">Email</Label>
+                            <Input id="login-email" type="email" {...loginForm.register("email")} placeholder="admin@example.com" />
+                            {loginForm.formState.errors.email && <p className="text-sm font-medium text-destructive">{loginForm.formState.errors.email.message}</p>}
+                        </div>
+                        <div>
+                            <Label htmlFor="login-password">Password</Label>
+                            <Input id="login-password" type="password" {...loginForm.register("password")} placeholder="********" />
+                            {loginForm.formState.errors.password && <p className="text-sm font-medium text-destructive">{loginForm.formState.errors.password.message}</p>}
+                        </div>
+                        {error && <p className="text-sm font-medium text-destructive">{error}</p>}
+                        <Button type="submit" className="w-full" disabled={isLoading}>Login</Button>
+                        <Button type="button" variant="ghost" className="w-full" onClick={() => { setStep(1); setError(null); }}>Back</Button>
+                    </form>
+                </CardContent>
+            </motion.div>
+        );
+
+      case 5: // Dashboard
         return (
           <motion.div
-            key="step3"
+            key="step5"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3 }}
             className="p-4"
           >
             <div className="flex justify-between items-center mb-6">
                  <h1 className="font-headline text-3xl font-bold">Dashboard for {districts.find(d=>d.value === selectedDistrict)?.label}</h1>
-                 <Button variant="outline" onClick={() => { setStep(1); setSelectedDistrict(""); setError(null); }}>Log Out</Button>
+                 <Button variant="outline" onClick={() => { setStep(1); setSelectedDistrict(""); setError(null); auth.signOut(); }}>Log Out</Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <Card>
@@ -338,3 +376,5 @@ export function AdminPanel() {
     </Card>
   );
 }
+
+    
