@@ -1,4 +1,6 @@
 
+"use client";
+
 import Image from "next/image";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
