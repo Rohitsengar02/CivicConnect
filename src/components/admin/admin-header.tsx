@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -8,12 +9,21 @@ import {
   Package,
   PanelLeft,
   Users2,
+  ChevronDown
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "../theme-toggle";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 export function AdminHeader() {
   return (
@@ -65,11 +75,33 @@ export function AdminHeader() {
           </nav>
         </SheetContent>
       </Sheet>
-      <div className="relative ml-auto flex-1 md:grow-0">
-          <h1 className="font-semibold text-lg">Dashboard</h1>
+      
+      <div className="hidden md:block">
+        <h1 className="font-semibold text-lg">Ranchi District</h1>
       </div>
-       <div className="relative ml-auto flex-1 md:grow-0">
+
+      <div className="ml-auto flex items-center gap-4">
           <ThemeToggle />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                 <Avatar className="h-6 w-6">
+                    <AvatarImage src="https://picsum.photos/id/1027/48/48" />
+                    <AvatarFallback>AS</AvatarFallback>
+                </Avatar>
+                <span className="hidden md:inline">Anjali Singh</span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground"/>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem>Support</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>Logout</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
       </div>
     </header>
   );

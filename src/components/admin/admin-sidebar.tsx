@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -7,7 +8,7 @@ import {
   Home,
   LineChart,
   Package,
-  Settings,
+  LogOut,
   Users2,
 } from "lucide-react";
 
@@ -60,9 +61,9 @@ export function AdminSidebar() {
             href="#"
             className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8 lg:h-10 lg:w-full lg:justify-start lg:px-3 lg:py-2"
         >
-            <Settings className="h-5 w-5" />
-            <span className="hidden lg:ml-4 lg:inline">Settings</span>
-            <span className="sr-only">Settings</span>
+            <LogOut className="h-5 w-5" />
+            <span className="hidden lg:ml-4 lg:inline">Logout</span>
+            <span className="sr-only">Logout</span>
         </Link>
       </nav>
     </aside>
