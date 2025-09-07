@@ -13,12 +13,12 @@ import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, runTransaction, getDoc, DocumentData } from "firebase/firestore";
+import { doc, runTransaction, getDoc, DocumentData, setDoc, deleteDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 type IssueStatus = "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
 
-type Issue = {
+export type Issue = {
   id: string;
   reporter: string;
   avatarUrl: string | null;
@@ -66,26 +66,35 @@ export function IssueCard({ issue }: IssueCardProps) {
   const [isVoting, setIsVoting] = useState(false);
 
   const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [displayDate, setDisplayDate] = useState("");
 
   useEffect(() => {
-    // This effect runs only on the client, after hydration
     setDisplayDate(new Date(issue.createdAt).toLocaleDateString());
 
-    const checkUserVote = async () => {
+    const checkUserVoteAndSaveStatus = async () => {
         if (user) {
+            // Check vote status
             const collectionsToTry = ['profiledIssues', 'anonymousIssues'];
             for (const coll of collectionsToTry) {
-                const voteRef = doc(db, coll, issue.id, "votes", user.uid);
-                const voteSnap = await getDoc(voteRef);
-                if (voteSnap.exists()) {
-                    setVoted(voteSnap.data().direction);
-                    break;
+                try {
+                    const voteRef = doc(db, coll, issue.id, "votes", user.uid);
+                    const voteSnap = await getDoc(voteRef);
+                    if (voteSnap.exists()) {
+                        setVoted(voteSnap.data().direction);
+                        break;
+                    }
+                } catch (e) {
+                    // This can fail if the collection doesn't exist, which is fine
                 }
             }
+            // Check saved status
+            const savedIssueRef = doc(db, "users", user.uid, "savedIssues", issue.id);
+            const savedIssueSnap = await getDoc(savedIssueRef);
+            setIsSaved(savedIssueSnap.exists());
         }
     };
-    checkUserVote();
+    checkUserVoteAndSaveStatus();
   }, [issue.createdAt, issue.id, user]);
   
   const handleVote = async (e: React.MouseEvent, direction: "up" | "down") => {
@@ -141,7 +150,7 @@ export function IssueCard({ issue }: IssueCardProps) {
               let newVoteCount = issueSnap.data().votes || 0;
               const currentVote = voteSnap.data()?.direction;
 
-              if (voteSnap.exists() && currentVote === direction) { // Unvoting
+              if (voteSnap.exists() && currentVote === direction) {
                   newVoteCount += (direction === 'up' ? -1 : 1);
                   transaction.delete(voteRef);
                   setVoted(null);
@@ -149,7 +158,7 @@ export function IssueCard({ issue }: IssueCardProps) {
                   if (currentVote === 'up') newVoteCount -= 1;
                   if (currentVote === 'down') newVoteCount += 1;
                   newVoteCount += (direction === 'up' ? 1 : -1);
-                  transaction.set(voteRef, { direction });
+                  transaction.set(voteRef, { direction, userId: user.uid });
                   setVoted(direction);
               }
               
@@ -164,10 +173,38 @@ export function IssueCard({ issue }: IssueCardProps) {
       }
   };
 
-  const handleSave = (e: React.MouseEvent) => {
+  const handleSave = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    setIsSaved(!isSaved);
+    if (!user) {
+        toast({ title: "Login Required", description: "You must be logged in to save issues." });
+        router.push("/login");
+        return;
+    }
+    if (isSaving) return;
+    setIsSaving(true);
+    const savedIssueRef = doc(db, "users", user.uid, "savedIssues", issue.id);
+
+    try {
+        if (isSaved) {
+            await deleteDoc(savedIssueRef);
+            setIsSaved(false);
+            toast({ title: "Unsaved", description: `"${issue.title}" removed from your saved issues.`});
+        } else {
+            await setDoc(savedIssueRef, {
+                title: issue.title,
+                imageUrl: issue.imageUrl,
+                createdAt: new Date(),
+            });
+            setIsSaved(true);
+            toast({ title: "Saved!", description: `"${issue.title}" added to your saved issues.`});
+        }
+    } catch (error) {
+        console.error("Save/unsave failed:", error);
+        toast({ title: "Error", description: "Could not update saved status. Please try again.", variant: "destructive" });
+    } finally {
+        setIsSaving(false);
+    }
   };
 
 
@@ -192,8 +229,9 @@ export function IssueCard({ issue }: IssueCardProps) {
               variant="secondary" 
               className="absolute top-3 right-3 rounded-full h-10 w-10"
               onClick={handleSave}
+              disabled={isSaving}
             >
-              <Bookmark className={cn("h-5 w-5", isSaved && "fill-primary text-primary")} />
+              <Bookmark className={cn("h-5 w-5 transition-colors", isSaved && "fill-primary text-primary")} />
           </Button>
         </div>
         <div className="p-4 flex flex-col flex-grow">
@@ -300,5 +338,3 @@ export function IssueCard({ issue }: IssueCardProps) {
     </Link>
   );
 }
-
-    
