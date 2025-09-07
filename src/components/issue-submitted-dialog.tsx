@@ -30,12 +30,28 @@ export function IssueSubmittedDialog({
   const { toast } = useToast();
 
   const copyToClipboard = () => {
-    if (issueId) {
+    if (issueId && typeof window !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(issueId);
       toast({
         title: "Copied to clipboard!",
         description: "Issue ID has been copied.",
       });
+    } else if (issueId) {
+      // Fallback for browsers that don't support clipboard API
+      const textArea = document.createElement('textarea');
+      textArea.value = issueId;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        toast({
+          title: "Copied to clipboard!",
+          description: "Issue ID has been copied.",
+        });
+      } catch (err) {
+        console.error('Failed to copy text: ', err);
+      }
+      document.body.removeChild(textArea);
     }
   };
 

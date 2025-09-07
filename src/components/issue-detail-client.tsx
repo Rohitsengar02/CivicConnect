@@ -205,7 +205,34 @@ export function IssueDetailClient({ issue }: { issue: Issue }) {
         }
     };
 
+    const fallbackCopyToClipboard = (text: string) => {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            toast({
+                title: 'Link Copied',
+                description: 'Issue link copied to your clipboard.',
+            });
+        } catch (err: unknown) {
+            const error = err as Error;
+            console.error('Fallback copy failed:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not copy the link. Please try again.',
+            });
+        }
+        document.body.removeChild(textArea);
+    };
+
     const handleShare = async () => {
+        // Only run on client side
+        if (typeof window === 'undefined') return;
+
+        // Check if Web Share API is available
         if (navigator.share) {
             try {
                 await navigator.share({
@@ -213,26 +240,38 @@ export function IssueDetailClient({ issue }: { issue: Issue }) {
                     text: `Check out this issue on CivicConnect: ${issue.description}`,
                     url: window.location.href,
                 });
-            } catch (error) {
-                console.error('Error sharing:', error);
+            } catch (error: any) {
+                // User cancelled the share or there was an error
+                if (error.name !== 'AbortError') {
+                    console.error('Error sharing:', error);
+                    toast({
+                        variant: 'destructive',
+                        title: 'Error',
+                        description: 'Could not share the issue at this time.',
+                    });
+                }
+                return;
+            }
+        } else if (navigator.clipboard) {
+            // Fallback: Use Clipboard API if available
+            try {
+                await navigator.clipboard.writeText(window.location.href);
                 toast({
-                    variant: 'destructive',
-                    title: 'Error',
-                    description: 'Could not share the issue at this time.',
+                    title: 'Link Copied',
+                    description: 'Issue link copied to your clipboard.',
                 });
+            } catch (error) {
+                console.error('Failed to copy:', error);
+                // Fallback to old-school method
+                fallbackCopyToClipboard(window.location.href);
             }
         } else {
-            // Fallback for browsers that don't support the Web Share API
-            navigator.clipboard.writeText(window.location.href);
-            toast({
-                title: 'Link Copied',
-                description: 'Issue link copied to your clipboard.',
-            });
+            // Fallback for older browsers
+            fallbackCopyToClipboard(window.location.href);
         }
     };
 
-
-  return (
+    return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         <div className="lg:col-span-3">
             <Carousel className="w-full">

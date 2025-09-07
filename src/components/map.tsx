@@ -1,9 +1,24 @@
-
 'use client';
 
-import { useEffect, useRef } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
+
+// Dynamically import Leaflet to avoid SSR issues
+let L: any;
+if (typeof window !== 'undefined') {
+  L = require('leaflet');
+  require('leaflet/dist/leaflet.css');
+}
+
+// Set default icon path for Leaflet
+if (typeof window !== 'undefined' && L) {
+  delete (L.Icon.Default.prototype as any)._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  });
+}
 
 interface Location {
   lat: number;
@@ -15,11 +30,9 @@ interface MapProps {
   path: Location[];
 }
 
-const createPersonIcon = () => {
-  // We need to make sure this code only runs on the client
-  if (typeof window === 'undefined') {
-    return new L.Icon.Default();
-  }
+const createPersonIcon = (L: any) => {
+  if (!L) return null;
+  
   return L.divIcon({
     className: 'custom-person-marker',
     html: `<div class="w-8 h-8 rounded-full bg-blue-500 border-2 border-white shadow-lg flex items-center justify-center animate-pulse">
@@ -32,22 +45,21 @@ const createPersonIcon = () => {
   });
 };
 
-// Set default icon path for Leaflet
-if (typeof window !== 'undefined') {
-  delete (L.Icon.Default.prototype as any)._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  });
-}
-
-
-export default function Map({ location, path }: MapProps) {
+function MapComponent({ location, path }: MapProps) {
+  const [isClient, setIsClient] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const polylineRef = useRef<L.Polyline | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  // Don't render on server
+  if (!isClient) {
+    return <div className="w-full h-full bg-gray-100 rounded-lg" />;
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -96,7 +108,7 @@ export default function Map({ location, path }: MapProps) {
       markerRef.current.setLatLng([location.lat, location.lng]);
     } else {
       markerRef.current = L.marker([location.lat, location.lng], {
-        icon: createPersonIcon(),
+        icon: createPersonIcon(L),
       }).addTo(mapRef.current);
     }
 
@@ -126,11 +138,12 @@ export default function Map({ location, path }: MapProps) {
   }, []);
 
   return (
-    <div 
-      ref={containerRef} 
-      className="w-full h-full"
-    />
+    <div ref={containerRef} className="w-full h-full rounded-lg overflow-hidden" />
   );
 }
 
-    
+// Export a dynamic version of the Map component that only renders on the client side
+export default dynamic(() => Promise.resolve(MapComponent), {
+  ssr: false,
+  loading: () => <div className="w-full h-full bg-gray-100 rounded-lg" />,
+});

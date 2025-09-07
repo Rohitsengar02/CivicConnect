@@ -55,7 +55,8 @@ export function ReportIssueForm() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionData, setSubmissionData] = useState<{ issueId: string; issueTitle: string } | null>(null);
     const [location, setLocation] = useState<Location | null>(null);
-    const [hasLocationPermission, setHasLocationPermission] = useState(true);
+    const [hasLocationPermission, setHasLocationPermission] = useState<boolean | null>(null);
+    const [isClient, setIsClient] = useState(false);
     const [districts, setDistricts] = useState<string[]>([]);
     const router = useRouter();
     
@@ -72,52 +73,70 @@ export function ReportIssueForm() {
     });
 
      useEffect(() => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    setHasLocationPermission(true);
-                    const newLocation = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                    };
-                    setLocation(newLocation);
+        setIsClient(true);
+        // Only run on client side
+        if (typeof window === 'undefined') return;
 
-                    try {
-                        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${newLocation.lat}&lon=${newLocation.lng}`);
-                        const data = await response.json();
-                        if (data && data.address) {
-                            const { road, neighbourhood, suburb, city_district, city, state, postcode } = data.address;
-                            
-                            const street = road || neighbourhood || suburb || "N/A";
-                            const cityInfo = `${city_district || city || ''}, ${state || ''}, ${postcode || ''}`;
+        // Wrap the geolocation code in a function that we can call after checking for window
+        const getLocation = async () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        setHasLocationPermission(true);
+                        const newLocation = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude,
+                        };
+                        setLocation(newLocation);
 
-                            form.setValue('streetAddress', street, { shouldValidate: true });
-                            form.setValue('cityInfo', cityInfo.trim(), { shouldValidate: true });
-                            
+                        try {
+                            const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${newLocation.lat}&lon=${newLocation.lng}&zoom=18&addressdetails=1`);
+                            const data = await response.json();
+                            if (data && data.address) {
+                                const { road, neighbourhood, suburb, city_district, city, state, postcode } = data.address;
+                                
+                                const street = road || neighbourhood || suburb || "Enter street address";
+                                const cityInfo = `${city_district || city || ''}, ${state || ''}, ${postcode || ''}`;
 
-                            const foundState = states.find(s => s.state === state);
-                            if (foundState) {
-                                form.setValue('state', foundState.state, { shouldValidate: true });
-                                setDistricts(foundState.districts);
-                                const foundDistrict = foundState.districts.find(d => d === (city_district || city || suburb));
-                                if (foundDistrict) {
-                                    form.setValue('district', foundDistrict, { shouldValidate: true });
+                                form.setValue('streetAddress', street, { shouldValidate: true });
+                                form.setValue('cityInfo', cityInfo.trim(), { shouldValidate: true });
+                                
+                                const foundState = states.find(s => s.state === state);
+                                if (foundState) {
+                                    form.setValue('state', foundState.state, { shouldValidate: true });
+                                    setDistricts(foundState.districts);
+                                    const foundDistrict = foundState.districts.find(d => d === (city_district || city || suburb));
+                                    if (foundDistrict) {
+                                        form.setValue('district', foundDistrict, { shouldValidate: true });
+                                    }
                                 }
                             }
+                        } catch (error) {
+                            console.error("Error fetching address:", error);
+                            toast({ variant: 'destructive', title: "Could not fetch address details."});
                         }
-                    } catch (error) {
-                        console.error("Error fetching address:", error);
-                        toast({ variant: 'destructive', title: "Could not fetch address details."});
+                    },
+                    (error) => {
+                        console.error("Geolocation error:", error);
+                        setHasLocationPermission(false);
+                        // Set default location if geolocation fails
+                        setLocation({ lat: 20.5937, lng: 78.9629 }); // Default to center of India
+                        form.setValue('state', 'Maharashtra', { shouldValidate: true });
+                        setDistricts(['Mumbai', 'Pune', 'Nagpur']); // Some default districts
+                        toast({
+                            title: 'Using default location',
+                            description: 'Unable to get your location. Using default location.',
+                            variant: 'default',
+                        });
                     }
-                },
-                (error) => {
-                    console.error("Geolocation error:", error);
-                    setHasLocationPermission(false);
-                }
-            );
-        } else {
-            setHasLocationPermission(false);
-        }
+                );
+            } else {
+                setHasLocationPermission(false);
+            }
+        };
+
+        getLocation();
+        
     }, [form, toast]);
 
     useEffect(() => {
@@ -238,11 +257,32 @@ export function ReportIssueForm() {
                         </Alert>
                     )}
                     <div className="relative w-full h-64 mb-6 rounded-lg overflow-hidden border">
-                         {location ? (
+                        {!isClient ? (
+                            <div className="w-full h-full bg-muted flex items-center justify-center">
+                                <div className="text-center">
+                                    <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                                    <p className="text-sm text-muted-foreground">Loading map...</p>
+                                </div>
+                            </div>
+                        ) : location ? (
                             <Map location={location} path={[]} />
                         ) : (
-                            <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground">
-                                {hasLocationPermission ? 'Getting your location...' : 'Location access denied.'}
+                            <div className="w-full h-full bg-muted flex items-center justify-center">
+                                <div className="text-center">
+                                    {hasLocationPermission === null ? (
+                                        <>
+                                            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                                            <p className="text-sm text-muted-foreground">Requesting location access...</p>
+                                        </>
+                                    ) : hasLocationPermission === false ? (
+                                        <div className="text-center">
+                                            <MapPin className="h-6 w-6 mx-auto mb-2 text-destructive" />
+                                            <p className="text-sm text-muted-foreground">Location access denied. Using default location.</p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">Getting your location...</p>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>

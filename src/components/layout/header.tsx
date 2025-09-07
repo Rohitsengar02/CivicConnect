@@ -31,11 +31,23 @@ export function Header() {
   const { user, logout } = useAuth();
 
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') return;
+
     const handleScroll = () => {
       setScrolled(window.scrollY > 10);
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    
+    // Set initial scroll state
+    handleScroll();
+    
+    // Add scroll event listener
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   return (
