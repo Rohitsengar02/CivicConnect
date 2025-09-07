@@ -8,8 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { BarChart, ListChecks, Users, CheckCircle, Clock } from "lucide-react";
+import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import { ListChecks, CheckCircle, Clock, Users } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis, Pie, PieChart, Cell } from "recharts";
 import { motion } from "framer-motion";
@@ -37,10 +37,10 @@ const pieChartData = [
 ];
 
 const statCards = [
-    { title: "Total Issues", value: "1,696", change: "+5.2% from last month", icon: ListChecks },
-    { title: "Resolved Issues", value: "987", change: "80% resolution rate", icon: CheckCircle },
-    { title: "Pending Issues", value: "247", change: "Needs attention", icon: Clock },
-    { title: "Active Users", value: "5,432", change: "+12% from last month", icon: Users },
+    { title: "Total Issues", value: "0", change: "", icon: ListChecks },
+    { title: "Resolved Issues", value: "0", change: "", icon: CheckCircle },
+    { title: "Pending Issues", value: "0", change: "", icon: Clock },
+    { title: "Active Users", value: "0", change: "", icon: Users },
 ];
 
 export default function AdminDashboardPage() {
@@ -48,10 +48,10 @@ export default function AdminDashboardPage() {
     <div className="grid auto-rows-max items-start gap-4 md:gap-8 lg:col-span-2">
        {/* Stat Cards - Carousel on Mobile, Grid on Desktop */}
        <div className="sm:hidden -ml-4">
-            <Carousel opts={{ align: "start", loop: true }} className="w-full">
+            <Carousel opts={{ align: "start" }} className="w-full max-w-full">
                 <CarouselContent>
                     {statCards.map((card, index) => (
-                        <CarouselItem key={index} className="basis-[90%] pl-4 mr-2">
+                        <CarouselItem key={index} className="basis-[90%] pl-4">
                             <Card>
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                     <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
