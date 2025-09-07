@@ -103,7 +103,7 @@ export function IssueCard({ issue }: IssueCardProps) {
            <Button 
               size="icon" 
               variant="secondary" 
-              className="absolute top-3 right-3 rounded-full h-10 w-10 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-3 right-3 rounded-full h-10 w-10"
               onClick={handleSave}
             >
               <Bookmark className={cn("h-5 w-5", isSaved && "fill-primary text-primary")} />
