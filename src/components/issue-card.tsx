@@ -177,7 +177,7 @@ export function IssueCard({ issue }: IssueCardProps) {
           }
       } catch (error) {
           console.error("Vote transaction failed: ", error);
-          toast({ title: "Error", description: "Your vote could not be recorded. Please try again.", variant: "destructive"});
+         
       } finally {
           setIsVoting(false);
       }
