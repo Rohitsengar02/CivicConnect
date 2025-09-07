@@ -1,78 +1,68 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
+    
     // Helper function to check for super admin role
-    function isSuperAdmin(userId) {
-      return exists(/databases/$(database)/documents/admins/$(userId)) &&
-             get(/databases/$(database)/documents/admins/$(userId)).data.role == 'superadmin';
+    function isSuperAdmin() {
+      // Check if the user's document exists in 'admins' and their role is 'superadmin'
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'superadmin';
     }
 
-    // Admins: Tracks district admin applications and roles
     match /admins/{adminId} {
-      allow read: if request.auth != null;
-      // Allow creation if the user is creating their own admin doc
-      allow create: if request.auth.uid == adminId;
-      // Allow updates only by a super admin
-      allow update: if isSuperAdmin(request.auth.uid);
-      allow delete: if false; // No one can delete admin docs
-    }
-
-    // District Admins: Maps districts to admin UIDs to prevent duplicates
-    match /districtAdmins/{districtId} {
-      // Allow checking for existence during registration
+      // Super admin can read and write to the entire collection.
+      // Other authenticated users can read any single admin document.
+      allow read, write: if isSuperAdmin();
       allow get: if request.auth != null;
-      // Allow a new user to create their own district mapping
-      allow create: if request.auth.uid == request.resource.data.adminId;
-      allow list, update, delete: if false; // Only super admin should manage this (via Cloud Functions, etc.)
     }
 
-    // Users collection
-    match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
-      
-      // Saved Issues subcollection
-      match /savedIssues/{issueId} {
-        allow read, write: if request.auth.uid == userId;
-      }
-      
-      // Notifications subcollection
-      match /notifications/{notificationId} {
-        allow read: if request.auth.uid == userId; // User can read their own notifications
-        allow create: if request.auth != null; // Any authenticated user can create a notification for another user
-        allow update, delete: if request.auth.uid == userId; // User can update/delete their own notifications
-      }
+    match /districtAdmins/{districtId} {
+      allow get; // Allow checking if a district admin exists
+      // Allow a new admin to create their own district mapping document
+      allow create: if request.resource.data.adminId == request.auth.uid;
     }
 
-    // Issues (generic, potentially legacy or for specific purposes)
+    // Rules for issues collections
     match /issues/{issueId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read, write: if request.auth != null; // Simplistic rule, might need refinement
     }
 
-    // Anonymous Issues
     match /anonymousIssues/{issueId} {
-      allow read: if true;
-      allow create: if true; // Anyone can create an anonymous issue
-      allow update, delete: if false; // Immutable after creation
+      allow read;
+      allow create; // Anyone can create
+      allow update: if request.auth != null; // Only auth users can update (e.g., vote)
 
-      // Votes on anonymous issues
       match /votes/{userId} {
-        allow read, write: if request.auth.uid == userId;
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // Profiled Issues
     match /profiledIssues/{issueId} {
-      allow read: if true;
-      // User can create an issue if the reporterId matches their own UID
+      allow read;
       allow create: if request.auth.uid == request.resource.data.reporterId;
-      allow update, delete: if false; // Immutable after creation for now
+      allow update: if request.auth != null;
 
-      // Votes on profiled issues
-      match /votes/{userId} {
-        allow read, write: if request.auth.uid == userId;
+       match /votes/{userId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Rules for user-specific data
+    match /users/{userId} {
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+      
+      match /savedIssues/{issueId} {
+         allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /notifications/{notificationId} {
+        // Any authenticated user can create a notification for another user (for votes/updates)
+        allow create: if request.auth != null;
+        // But only the user themselves can read/update/delete their own notifications
+        allow read, update, delete: if request.auth != null && request.auth.uid == userId;
       }
     }
   }
