@@ -56,8 +56,14 @@ export default function ManageIssueDetailPage({ params }: { params: { id: string
       if (!params.id) return;
       setIsLoading(true);
       try {
-        const issueRef = doc(db, "issues", params.id);
-        const issueSnap = await getDoc(issueRef);
+        let issueRef = doc(db, "profiledIssues", params.id);
+        let issueSnap = await getDoc(issueRef);
+        
+        if (!issueSnap.exists()) {
+            issueRef = doc(db, "anonymousIssues", params.id);
+            issueSnap = await getDoc(issueRef);
+        }
+        
         if (issueSnap.exists()) {
           const issueData = { id: issueSnap.id, ...issueSnap.data() } as Issue;
           setIssue(issueData);
@@ -83,7 +89,12 @@ export default function ManageIssueDetailPage({ params }: { params: { id: string
       if (!issue || newStatus === issue.status) return;
       setIsSaving(true);
       try {
-        const issueRef = doc(db, "issues", issue.id);
+        let issueRef = doc(db, "profiledIssues", issue.id);
+        let issueSnap = await getDoc(issueRef);
+        if (!issueSnap.exists()) {
+            issueRef = doc(db, "anonymousIssues", issue.id);
+        }
+
         await updateDoc(issueRef, {
             status: newStatus
         });
