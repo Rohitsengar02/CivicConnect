@@ -10,8 +10,14 @@ import { IssueDetailClient, type Issue } from "@/components/issue-detail-client"
 
 async function getIssue(id: string): Promise<Issue | null> {
     const db = getFirestore(app);
-    const issueRef = doc(db, "issues", id);
-    const issueSnap = await getDoc(issueRef);
+    
+    const profiledIssueRef = doc(db, "profiledIssues", id);
+    let issueSnap = await getDoc(profiledIssueRef);
+
+    if (!issueSnap.exists()) {
+        const anonymousIssueRef = doc(db, "anonymousIssues", id);
+        issueSnap = await getDoc(anonymousIssueRef);
+    }
 
     if (issueSnap.exists()) {
         const data = issueSnap.data();
