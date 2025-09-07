@@ -15,30 +15,29 @@ interface Issue {
   status: "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
   description: string;
   aiHint?: string;
+  address: string;
 }
 
 async function getIssues() {
   const db = getFirestore(app);
   
-  const profiledIssuesCol = collection(db, "profiledIssues");
-  const anonymousIssuesCol = collection(db, "anonymousIssues");
+  const collectionsToFetch = [
+      collection(db, "profiledIssues"),
+      collection(db, "anonymousIssues")
+  ];
 
-  const [profiledSnapshot, anonymousSnapshot] = await Promise.all([
-    getDocs(profiledIssuesCol),
-    getDocs(anonymousIssuesCol)
-  ]);
+  const allIssues: Issue[] = [];
 
-  const profiledList = profiledSnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Issue));
-
-  const anonymousList = anonymousSnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as Issue));
+  for (const coll of collectionsToFetch) {
+      const snapshot = await getDocs(coll);
+      const issues = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+      } as Issue));
+      allIssues.push(...issues);
+  }
   
-  return [...profiledList, ...anonymousList];
+  return allIssues;
 }
 
 export async function IssueGrid() {
@@ -46,12 +45,12 @@ export async function IssueGrid() {
   
   const issuesWithClientProps = issues.map((issue) => ({
     ...issue,
-    createdAt: issue.createdAt.toDate().toISOString(), // Convert Timestamp to ISO string
-    id: issue.id.toString(), // Ensure id is a string, just in case
+    createdAt: issue.createdAt.toDate().toISOString(),
+    id: issue.id,
     reporter: issue.reporterName || "Anonymous",
     avatarUrl: issue.avatarUrl || null,
     imageUrl: issue.imageUrls?.[0] || "https://picsum.photos/800/600",
-    time: issue.createdAt.toDate().toLocaleDateString(),
+    time: "Deprecated", // This will be handled on the client from createdAt
     aiHint: issue.aiHint || "issue image",
   }));
 

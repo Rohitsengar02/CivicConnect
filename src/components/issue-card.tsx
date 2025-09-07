@@ -14,7 +14,7 @@ import { Button } from "./ui/button";
 type IssueStatus = "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
 
 type Issue = {
-  id: string; // Changed from number to string
+  id: string; 
   reporter: string;
   avatarUrl: string | null;
   time: string;
@@ -25,7 +25,8 @@ type Issue = {
   status: IssueStatus;
   description: string;
   aiHint: string;
-  createdAt: string; // Added createdAt as string
+  createdAt: string; 
+  address: string;
 };
 
 type IssueCardProps = {
@@ -53,7 +54,7 @@ export function IssueCard({ issue }: IssueCardProps) {
   const [voteCount, setVoteCount] = useState(0);
   const [voted, setVoted] = useState<"up" | "down" | null>(null);
   const [isSaved, setIsSaved] = useState(false);
-  const [displayDate, setDisplayDate] = useState(issue.time);
+  const [displayDate, setDisplayDate] = useState("");
 
   useEffect(() => {
     // This ensures toLocaleDateString is only called on the client, avoiding hydration mismatch.
@@ -125,6 +126,7 @@ export function IssueCard({ issue }: IssueCardProps) {
                   {issue.district}
               </Badge>
           </div>
+          <p className="text-xs text-muted-foreground mt-1 truncate">{issue.address}</p>
           <div className="mt-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">

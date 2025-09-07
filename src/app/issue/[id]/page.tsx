@@ -1,6 +1,4 @@
 
-"use client";
-
 import Image from "next/image";
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
@@ -16,35 +14,44 @@ import {
 } from "@/components/ui/carousel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowUp, ArrowDown, MapPin, Share2, Bookmark, MessageSquare, Edit } from "lucide-react";
+import { ArrowUp, ArrowDown, MapPin, Share2, Bookmark, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Footer } from "@/components/layout/footer";
+import { getFirestore, doc, getDoc, Timestamp } from "firebase/firestore";
+import { app } from "@/lib/firebase";
+import { notFound } from "next/navigation";
 
-// Mock data - in a real app, you'd fetch this based on the `id` param
-const issues = [
-  {
-    id: 1,
-    reporter: "Ravi Kumar",
-    avatarUrl: "https://picsum.photos/id/1005/48/48",
-    time: "5 min ago",
-    images: [
-      "https://picsum.photos/800/600?random=1",
-      "https://picsum.photos/800/600?random=11",
-      "https://picsum.photos/800/600?random=12",
-    ],
-    title: "Large Pothole on Main St",
-    district: "Ranchi",
-    category: "Roads",
-    status: "Confirmation",
-    description: "A large and dangerous pothole has formed on Main Street, near the central library. It has already caused damage to several vehicles. It needs to be repaired urgently to prevent any accidents.",
-    aiHint: "pothole road",
-    votes: 125,
-  },
-  // Add other issues here if needed
-];
+interface Issue {
+  id: string;
+  reporterName?: string;
+  avatarUrl?: string | null;
+  createdAt: Timestamp;
+  imageUrls: string[];
+  title: string;
+  district: string;
+  category: string;
+  status: "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
+  description: string;
+  address: string;
+  votes?: number; // Assuming votes might be a field
+}
 
-const issue = issues[0]; // For demonstration, we'll always show the first issue
+
+async function getIssue(id: string): Promise<Issue | null> {
+    const db = getFirestore(app);
+    const collectionsToSearch = ["profiledIssues", "anonymousIssues"];
+
+    for (const collectionName of collectionsToSearch) {
+        const issueRef = doc(db, collectionName, id);
+        const issueSnap = await getDoc(issueRef);
+        if (issueSnap.exists()) {
+            return { id: issueSnap.id, ...issueSnap.data() } as Issue;
+        }
+    }
+    return null;
+}
+
 
 type IssueStatus = "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
 const statuses: IssueStatus[] = ["Pending", "Confirmation", "Acknowledgment", "Resolution"];
@@ -57,10 +64,12 @@ const statusGradients: Record<IssueStatus, string> = {
 const statusIndex = (status: IssueStatus) => statuses.indexOf(status);
 
 
-export default function IssueDetailPage({ params }: { params: { id: string } }) {
-  // In a real app, you would use params.id to fetch the correct issue
-  // const issue = issues.find(i => i.id === parseInt(params.id));
-  // if (!issue) return <div>Issue not found</div>;
+export default async function IssueDetailPage({ params }: { params: { id: string } }) {
+  const issue = await getIssue(params.id);
+
+  if (!issue) {
+    notFound();
+  }
     
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
@@ -72,7 +81,7 @@ export default function IssueDetailPage({ params }: { params: { id: string } }) 
                 <div className="lg:col-span-3">
                     <Carousel className="w-full">
                         <CarouselContent>
-                            {issue.images.map((src, index) => (
+                            {issue.imageUrls.map((src, index) => (
                             <CarouselItem key={index}>
                                 <Card className="overflow-hidden border-0 shadow-none">
                                     <CardContent className="p-0">
@@ -109,24 +118,24 @@ export default function IssueDetailPage({ params }: { params: { id: string } }) 
                         <div className="mt-4 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <Avatar className="h-10 w-10">
-                                    {issue.avatarUrl && <AvatarImage src={issue.avatarUrl} alt={issue.reporter} />}
+                                    {issue.avatarUrl && <AvatarImage src={issue.avatarUrl} alt={issue.reporterName} />}
                                     <AvatarFallback>
-                                    {issue.reporter
-                                        .split(" ")
+                                    {issue.reporterName
+                                        ?.split(" ")
                                         .map((n) => n[0])
                                         .join("") || "A"}
                                     </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                    <p className="font-semibold">{issue.reporter}</p>
-                                    <p className="text-xs text-muted-foreground">{issue.time}</p>
+                                    <p className="font-semibold">{issue.reporterName || 'Anonymous'}</p>
+                                    <p className="text-xs text-muted-foreground">{issue.createdAt.toDate().toLocaleDateString()}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 text-muted-foreground">
                                 <Button size="icon" variant="ghost" className="rounded-full">
                                     <ArrowUp className="text-green-500" />
                                 </Button>
-                                <span className="text-lg font-bold text-foreground">{issue.votes}</span>
+                                <span className="text-lg font-bold text-foreground">{issue.votes || 0}</span>
                                  <Button size="icon" variant="ghost" className="rounded-full">
                                     <ArrowDown className="text-red-500"/>
                                 </Button>
@@ -138,6 +147,13 @@ export default function IssueDetailPage({ params }: { params: { id: string } }) 
                         <div>
                             <h2 className="text-lg font-semibold mb-2">Description</h2>
                             <p className="text-muted-foreground">{issue.description}</p>
+                        </div>
+                        
+                        <Separator className="my-6" />
+
+                         <div>
+                            <h2 className="text-lg font-semibold mb-2">Location</h2>
+                            <p className="text-muted-foreground">{issue.address}</p>
                         </div>
 
                         <Separator className="my-6" />
