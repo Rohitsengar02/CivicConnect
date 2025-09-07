@@ -97,9 +97,12 @@ export function AdminPanel() {
   const onDistrictSubmit = async (data: DistrictSelectionValues) => {
     setIsLoading(true);
     setError(null);
-    const districtId = `${data.state}-${data.district}`.toLowerCase().replace(/\s+/g, '-');
     try {
-        const q = query(collection(db, "admins"), where("district", "==", data.district), where("state", "==", data.state));
+        const q = query(
+            collection(db, "districtAdmins"), 
+            where("district", "==", data.district), 
+            where("state", "==", data.state)
+        );
         const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
@@ -117,42 +120,48 @@ export function AdminPanel() {
   const onRegistrationSubmit = async (data: RegistrationValues) => {
     setIsLoading(true);
     setError(null);
-
     try {
-        const q = query(collection(db, "admins"), where("district", "==", selectedDistrict), where("state", "==", selectedState));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-            setError(`An admin for this district was just registered. Please select another.`);
-            setIsLoading(false);
-            setStep(2);
-            return;
-        }
-
+      // Create user first
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const user = userCredential.user;
+
+      const batch = writeBatch(db);
       
-      await writeBatch(db)
-        .set(doc(db, "admins", user.uid), {
-            name: data.name,
-            email: data.email,
-            state: selectedState,
-            district: selectedDistrict,
-            role: "admin",
-            status: "pending",
-            createdAt: new Date(),
-        })
-        .commit();
+      // Create a document in 'admins' collection
+      const adminRef = doc(db, "admins", user.uid);
+      batch.set(adminRef, {
+        name: data.name,
+        email: data.email,
+        state: selectedState,
+        district: selectedDistrict,
+        role: "admin",
+        status: "pending",
+        createdAt: new Date(),
+      });
+
+      // Create a document in 'districtAdmins' to enforce uniqueness
+      const districtAdminRef = doc(collection(db, "districtAdmins"));
+      batch.set(districtAdminRef, {
+          adminId: user.uid,
+          state: selectedState,
+          district: selectedDistrict,
+      });
+
+      await batch.commit();
       
       toast({
         title: "Registration Successful!",
         description: "Your application has been submitted and is pending approval.",
       });
       
+      await auth.signOut();
       setStep(1); // Go back to main choice
+
     } catch (error: any) {
         if (error.code === 'auth/email-already-in-use') {
             setError('This email is already registered.');
         } else {
+            console.error("Registration error:", error);
             setError('An unexpected error occurred during registration.');
         }
     } finally {
@@ -160,19 +169,29 @@ export function AdminPanel() {
     }
   };
 
+
  const onLoginSubmit = async (data: LoginValues) => {
     setIsLoading(true);
     setError(null);
     try {
-        const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-        const user = userCredential.user;
-
-        if (user.uid === process.env.NEXT_PUBLIC_SUPER_ADMIN_UID) {
-            sessionStorage.setItem('userRole', 'superadmin');
-            router.push('/admin/dashboard');
-            return;
+        // Super Admin Login
+        if (data.email === process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL) {
+            if (data.password === process.env.NEXT_PUBLIC_SUPER_ADMIN_PASSWORD) {
+                 await signInWithEmailAndPassword(auth, data.email, data.password);
+                 sessionStorage.setItem('userRole', 'superadmin');
+                 sessionStorage.setItem('adminInfo', JSON.stringify({ name: 'Super Admin', district: 'Global', email: data.email }));
+                 router.push('/admin/dashboard');
+                 return;
+            } else {
+                 setError("Invalid credentials for super admin.");
+                 setIsLoading(false);
+                 return;
+            }
         }
 
+        // District Admin Login
+        const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+        const user = userCredential.user;
         const adminDocRef = doc(db, "admins", user.uid);
         const adminDoc = await getDoc(adminDocRef);
 
@@ -180,6 +199,11 @@ export function AdminPanel() {
             const adminData = adminDoc.data();
             if (adminData.role === 'admin' && adminData.status === 'approved') {
                 sessionStorage.setItem('userRole', 'admin');
+                sessionStorage.setItem('adminInfo', JSON.stringify({
+                    name: adminData.name,
+                    district: adminData.district,
+                    email: adminData.email
+                }));
                 router.push('/admin/dashboard');
             } else if (adminData.status === 'pending') {
                 setError("Your application is still pending approval.");
@@ -339,3 +363,5 @@ export function AdminPanel() {
     </Card>
   );
 }
+
+    

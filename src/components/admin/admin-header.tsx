@@ -18,11 +18,18 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "../theme-toggle";
 
-export function AdminHeader({ userRole }: { userRole: string }) {
+interface AdminInfo {
+  name: string;
+  district: string;
+  email: string;
+}
+
+export function AdminHeader({ userRole, adminInfo }: { userRole: string; adminInfo: AdminInfo | null }) {
   const router = useRouter();
 
   const handleLogout = () => {
     sessionStorage.removeItem('userRole');
+    sessionStorage.removeItem('adminInfo');
     router.push('/admin');
   };
 
@@ -75,7 +82,9 @@ export function AdminHeader({ userRole }: { userRole: string }) {
       </Sheet>
       
       <div className="hidden md:block">
-        <h1 className="font-semibold text-lg">{userRole === 'superadmin' ? 'Super Admin Dashboard' : 'Ranchi District Dashboard'}</h1>
+        <h1 className="font-semibold text-lg">
+          {userRole === 'superadmin' ? 'Super Admin Dashboard' : `${adminInfo?.district || ''} District Dashboard`}
+        </h1>
       </div>
 
       <div className="ml-auto flex items-center gap-4">
@@ -84,3 +93,5 @@ export function AdminHeader({ userRole }: { userRole: string }) {
     </header>
   );
 }
+
+    

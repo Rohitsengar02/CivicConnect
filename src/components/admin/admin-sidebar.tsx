@@ -30,12 +30,19 @@ import { Button } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
 
-export function AdminSidebar({ userRole }: { userRole: string }) {
+interface AdminInfo {
+  name: string;
+  district: string;
+  email: string;
+}
+
+export function AdminSidebar({ userRole, adminInfo }: { userRole: string; adminInfo: AdminInfo | null }) {
     const pathname = usePathname();
     const router = useRouter();
 
     const handleLogout = () => {
         sessionStorage.removeItem('userRole');
+        sessionStorage.removeItem('adminInfo');
         router.push('/admin');
     };
 
@@ -119,11 +126,11 @@ export function AdminSidebar({ userRole }: { userRole: string }) {
                 <div className="flex items-center gap-3">
                     <Avatar className="h-9 w-9">
                         <AvatarImage src="https://picsum.photos/id/1027/48/48" />
-                        <AvatarFallback>{userRole === 'superadmin' ? 'SA' : 'DA'}</AvatarFallback>
+                        <AvatarFallback>{adminInfo?.name?.charAt(0) || 'A'}</AvatarFallback>
                     </Avatar>
                     <div>
-                        <p className="text-sm font-semibold text-foreground">{userRole === 'superadmin' ? 'Super Admin' : 'Anjali S.'}</p>
-                        <p className="text-xs text-muted-foreground">{userRole === 'superadmin' ? 'Global' : 'Ranchi District'}</p>
+                        <p className="text-sm font-semibold text-foreground">{adminInfo?.name || 'Admin'}</p>
+                        <p className="text-xs text-muted-foreground">{adminInfo?.district || 'District'}</p>
                     </div>
                 </div>
                  <DropdownMenu>
@@ -150,3 +157,5 @@ export function AdminSidebar({ userRole }: { userRole: string }) {
     </aside>
   );
 }
+
+    
