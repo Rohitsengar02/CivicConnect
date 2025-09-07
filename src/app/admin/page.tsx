@@ -47,11 +47,11 @@ export default function AdminDashboardPage() {
   return (
     <div className="grid auto-rows-max items-start gap-4 md:gap-8 lg:col-span-2">
        {/* Stat Cards - Carousel on Mobile, Grid on Desktop */}
-       <div className="sm:hidden">
+       <div className="sm:hidden -ml-4">
             <Carousel opts={{ align: "start", loop: true }} className="w-full">
                 <CarouselContent>
                     {statCards.map((card, index) => (
-                        <CarouselItem key={index} className="basis-11/12 pl-4">
+                        <CarouselItem key={index} className="basis-[90%] pl-4 mr-2">
                             <Card>
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                     <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
