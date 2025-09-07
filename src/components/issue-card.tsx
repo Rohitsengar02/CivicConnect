@@ -6,9 +6,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
-import { ArrowUp, ArrowDown, MapPin, CheckCircle2 } from "lucide-react";
+import { ArrowUp, ArrowDown, MapPin, CheckCircle2, Bookmark } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Button } from "./ui/button";
 
 type IssueStatus = "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
 
@@ -50,6 +51,7 @@ const statusGradients: Record<IssueStatus, string> = {
 export function IssueCard({ issue }: IssueCardProps) {
   const [voteCount, setVoteCount] = useState(0);
   const [voted, setVoted] = useState<"up" | "down" | null>(null);
+  const [isSaved, setIsSaved] = useState(false);
 
   const handleUpvote = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -75,6 +77,12 @@ export function IssueCard({ issue }: IssueCardProps) {
     }
   };
 
+  const handleSave = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsSaved(!isSaved);
+  };
+
 
   return (
     <Link href={`/issue/${issue.id}`} passHref>
@@ -92,6 +100,14 @@ export function IssueCard({ issue }: IssueCardProps) {
             className="object-cover transition-transform duration-300 group-hover:scale-105"
             data-ai-hint={issue.aiHint}
           />
+           <Button 
+              size="icon" 
+              variant="secondary" 
+              className="absolute top-3 right-3 rounded-full h-10 w-10 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={handleSave}
+            >
+              <Bookmark className={cn("h-5 w-5", isSaved && "fill-primary text-primary")} />
+          </Button>
         </div>
         <div className="p-4 flex flex-col flex-grow">
           <div className="flex items-center justify-between">
