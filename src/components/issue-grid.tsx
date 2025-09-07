@@ -56,7 +56,7 @@ export async function IssueGrid() {
 
   return (
     <section className="py-4">
-        <IssueGridClient issues={issuesWithClient-props} />
+        <IssueGridClient issues={issuesWithClientProps} />
     </section>
   );
 }
