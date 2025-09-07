@@ -1,0 +1,43 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if a user is an admin by checking an 'admins' collection
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Users can only read and write to their own user document
+    match /users/{userId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+    }
+
+    // Issues can be read by anyone.
+    // Authenticated users can create issues.
+    // Only the user who created the issue or an admin can update or delete it.
+    match /issues/{issueId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null && (resource.data.reporterId == request.auth.uid || isAdmin());
+    }
+    
+    // Comments on issues can be read by anyone.
+    // Authenticated users can add comments.
+    // The user who wrote the comment or an admin can delete it.
+    match /issues/{issueId}/comments/{commentId} {
+        allow read: if true;
+        allow create: if request.auth != null;
+        allow delete: if request.auth != null && (resource.data.authorId == request.auth.uid || isAdmin());
+    }
+
+    // Admins collection can only be read or written to by other authenticated admins.
+    // This is a basic check. For production, consider using custom claims.
+    match /admins/{adminId} {
+        allow read, write: if request.auth != null && isAdmin();
+    }
+    
+  }
+}
