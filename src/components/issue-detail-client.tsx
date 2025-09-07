@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,12 +18,17 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowUp, ArrowDown, MapPin, Share2, Bookmark, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { useAuth } from "@/hooks/use-auth";
+import { useRouter } from "next/navigation";
+import { db } from "@/lib/firebase";
+import { doc, runTransaction, getDoc, DocumentData } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 export interface Issue {
   id: string;
   reporterName?: string;
   avatarUrl?: string | null;
-  createdAt: string; // Changed to string
+  createdAt: string; 
   imageUrls: string[];
   title: string;
   district: string;
@@ -46,6 +52,105 @@ const statusIndex = (status: IssueStatus) => statuses.indexOf(status);
 
 
 export function IssueDetailClient({ issue }: { issue: Issue }) {
+    const { user } = useAuth();
+    const router = useRouter();
+    const { toast } = useToast();
+    
+    const [voteCount, setVoteCount] = useState(issue.votes || 0);
+    const [voted, setVoted] = useState<"up" | "down" | null>(null);
+    const [isVoting, setIsVoting] = useState(false);
+
+    useEffect(() => {
+        const checkUserVote = async () => {
+            if (user) {
+                const collectionsToTry = ['profiledIssues', 'anonymousIssues'];
+                for (const coll of collectionsToTry) {
+                    const voteRef = doc(db, coll, issue.id, "votes", user.uid);
+                    const voteSnap = await getDoc(voteRef);
+                    if (voteSnap.exists()) {
+                        setVoted(voteSnap.data().direction);
+                        break;
+                    }
+                }
+            }
+        };
+        checkUserVote();
+      }, [issue.id, user]);
+
+    const handleVote = async (direction: "up" | "down") => {
+        if (!user) {
+            toast({
+                title: "Login Required",
+                description: "You must be logged in to vote.",
+                variant: "destructive"
+            });
+            router.push("/login");
+            return;
+        }
+
+        if (isVoting) return;
+        setIsVoting(true);
+
+        const collectionsToTry = ['profiledIssues', 'anonymousIssues'];
+        let issueRef;
+        let issueDoc: DocumentData | null = null;
+        let collectionName = '';
+
+        for (const coll of collectionsToTry) {
+            const ref = doc(db, coll, issue.id);
+            const snap = await getDoc(ref);
+            if (snap.exists()) {
+                issueRef = ref;
+                issueDoc = snap;
+                collectionName = coll;
+                break;
+            }
+        }
+        
+        if (!issueRef || !issueDoc) {
+            toast({ title: "Error", description: "Issue not found.", variant: "destructive"});
+            setIsVoting(false);
+            return;
+        }
+  
+        const voteRef = doc(db, collectionName, issue.id, "votes", user.uid);
+  
+        try {
+            await runTransaction(db, async (transaction) => {
+                const voteSnap = await transaction.get(voteRef);
+                const issueSnap = await transaction.get(issueRef!);
+                
+                if (!issueSnap.exists()) {
+                    throw "Issue does not exist!";
+                }
+  
+                let newVoteCount = issueSnap.data().votes || 0;
+                const currentVote = voteSnap.data()?.direction;
+  
+                if (voteSnap.exists() && currentVote === direction) { // Unvoting
+                    newVoteCount += (direction === 'up' ? -1 : 1);
+                    transaction.delete(voteRef);
+                    setVoted(null);
+                } else {
+                    if (currentVote === 'up') newVoteCount -= 1;
+                    if (currentVote === 'down') newVoteCount += 1;
+                    newVoteCount += (direction === 'up' ? 1 : -1);
+                    transaction.set(voteRef, { direction });
+                    setVoted(direction);
+                }
+                
+                transaction.update(issueRef!, { votes: newVoteCount });
+                setVoteCount(newVoteCount);
+            });
+        } catch (error) {
+            console.error("Vote transaction failed: ", error);
+            toast({ title: "Error", description: "Your vote could not be recorded. Please try again.", variant: "destructive"});
+        } finally {
+            setIsVoting(false);
+        }
+    };
+
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Image Gallery */}
@@ -103,11 +208,11 @@ export function IssueDetailClient({ issue }: { issue: Issue }) {
                         </div>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
-                        <Button size="icon" variant="ghost" className="rounded-full">
+                        <Button size="icon" variant="ghost" className={cn("rounded-full", voted === 'up' && "bg-green-100 dark:bg-green-900/50")} onClick={() => handleVote('up')} disabled={isVoting}>
                             <ArrowUp className="text-green-500" />
                         </Button>
-                        <span className="text-lg font-bold text-foreground">{issue.votes || 0}</span>
-                         <Button size="icon" variant="ghost" className="rounded-full">
+                        <span className="text-lg font-bold text-foreground">{voteCount}</span>
+                         <Button size="icon" variant="ghost" className={cn("rounded-full", voted === 'down' && "bg-red-100 dark:bg-red-900/50")} onClick={() => handleVote('down')} disabled={isVoting}>
                             <ArrowDown className="text-red-500"/>
                         </Button>
                     </div>

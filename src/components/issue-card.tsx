@@ -10,6 +10,11 @@ import { ArrowUp, ArrowDown, MapPin, CheckCircle2, Bookmark } from "lucide-react
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
+import { useAuth } from "@/hooks/use-auth";
+import { useRouter } from "next/navigation";
+import { db } from "@/lib/firebase";
+import { doc, runTransaction, getDoc, collection, DocumentData } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 type IssueStatus = "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
 
@@ -27,6 +32,7 @@ type Issue = {
   aiHint: string;
   createdAt: string; 
   address: string;
+  votes?: number;
 };
 
 type IssueCardProps = {
@@ -51,39 +57,110 @@ const statusGradients: Record<IssueStatus, string> = {
 
 
 export function IssueCard({ issue }: IssueCardProps) {
-  const [voteCount, setVoteCount] = useState(0);
+  const { user } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+  
+  const [voteCount, setVoteCount] = useState(issue.votes || 0);
   const [voted, setVoted] = useState<"up" | "down" | null>(null);
+  const [isVoting, setIsVoting] = useState(false);
+
   const [isSaved, setIsSaved] = useState(false);
   const [displayDate, setDisplayDate] = useState("");
 
   useEffect(() => {
-    // This ensures toLocaleDateString is only called on the client, avoiding hydration mismatch.
     setDisplayDate(new Date(issue.createdAt).toLocaleDateString());
-  }, [issue.createdAt]);
 
+    const checkUserVote = async () => {
+        if (user) {
+            const collectionsToTry = ['profiledIssues', 'anonymousIssues'];
+            for (const coll of collectionsToTry) {
+                const voteRef = doc(db, coll, issue.id, "votes", user.uid);
+                const voteSnap = await getDoc(voteRef);
+                if (voteSnap.exists()) {
+                    setVoted(voteSnap.data().direction);
+                    break;
+                }
+            }
+        }
+    };
+    checkUserVote();
+  }, [issue.createdAt, issue.id, user]);
+  
+  const handleVote = async (e: React.MouseEvent, direction: "up" | "down") => {
+      e.stopPropagation();
+      e.preventDefault();
+      
+      if (!user) {
+        toast({
+            title: "Login Required",
+            description: "You must be logged in to vote.",
+            variant: "destructive"
+        });
+        router.push("/login");
+        return;
+      }
+      
+      if (isVoting) return;
+      setIsVoting(true);
 
-  const handleUpvote = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (voted === "up") {
-      setVoteCount(voteCount - 1);
-      setVoted(null);
-    } else {
-      setVoteCount(voteCount + (voted === "down" ? 2 : 1));
-      setVoted("up");
-    }
-  };
+      const collectionsToTry = ['profiledIssues', 'anonymousIssues'];
+      let issueRef;
+      let issueDoc: DocumentData | null = null;
+      let collectionName = '';
 
-  const handleDownvote = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (voted === "down") {
-      setVoteCount(voteCount + 1);
-      setVoted(null);
-    } else {
-      setVoteCount(voteCount - (voted === "up" ? 2 : 1));
-      setVoted("down");
-    }
+      for (const coll of collectionsToTry) {
+          const ref = doc(db, coll, issue.id);
+          const snap = await getDoc(ref);
+          if (snap.exists()) {
+              issueRef = ref;
+              issueDoc = snap;
+              collectionName = coll;
+              break;
+          }
+      }
+      
+      if (!issueRef || !issueDoc) {
+          toast({ title: "Error", description: "Issue not found.", variant: "destructive"});
+          setIsVoting(false);
+          return;
+      }
+
+      const voteRef = doc(db, collectionName, issue.id, "votes", user.uid);
+
+      try {
+          await runTransaction(db, async (transaction) => {
+              const voteSnap = await transaction.get(voteRef);
+              const issueSnap = await transaction.get(issueRef!);
+              
+              if (!issueSnap.exists()) {
+                  throw "Issue does not exist!";
+              }
+
+              let newVoteCount = issueSnap.data().votes || 0;
+              const currentVote = voteSnap.data()?.direction;
+
+              if (voteSnap.exists() && currentVote === direction) { // Unvoting
+                  newVoteCount += (direction === 'up' ? -1 : 1);
+                  transaction.delete(voteRef);
+                  setVoted(null);
+              } else {
+                  if (currentVote === 'up') newVoteCount -= 1;
+                  if (currentVote === 'down') newVoteCount += 1;
+                  newVoteCount += (direction === 'up' ? 1 : -1);
+                  transaction.set(voteRef, { direction });
+                  setVoted(direction);
+              }
+              
+              transaction.update(issueRef!, { votes: newVoteCount });
+              setVoteCount(newVoteCount);
+          });
+      } catch (error) {
+          console.error("Vote transaction failed: ", error);
+          toast({ title: "Error", description: "Your vote could not be recorded. Please try again.", variant: "destructive"});
+      } finally {
+          setIsVoting(false);
+      }
   };
 
   const handleSave = (e: React.MouseEvent) => {
@@ -145,7 +222,8 @@ export function IssueCard({ issue }: IssueCardProps) {
               </div>
               <div className="flex items-center gap-1">
                   <button 
-                      onClick={handleUpvote}
+                      onClick={(e) => handleVote(e, 'up')}
+                      disabled={isVoting}
                       className={cn(
                           "rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent",
                           voted === "up" ? "bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400" : "hover:text-green-500"
@@ -154,7 +232,8 @@ export function IssueCard({ issue }: IssueCardProps) {
                   </button>
                   <span className="text-sm font-semibold w-6 text-center">{voteCount}</span>
                   <button 
-                      onClick={handleDownvote}
+                      onClick={(e) => handleVote(e, 'down')}
+                      disabled={isVoting}
                       className={cn(
                           "rounded-full p-2 text-muted-foreground transition-colors hover:bg-accent",
                           voted === "down" ? "bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400" : "hover:text-red-500"
@@ -209,7 +288,7 @@ export function IssueCard({ issue }: IssueCardProps) {
               </div>
           </div>
           <div className="w-full flex justify-between items-start mt-2 text-xs text-muted-foreground">
-              {statuses.map((status, index) => (
+              {statuses.map((status) => (
                   <span key={status} className={cn("flex-1 text-center leading-tight truncate", issue.status === status && "font-bold text-foreground")}>
                       {statusLabels[status as IssueStatus]}
                   </span>

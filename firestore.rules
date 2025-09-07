@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -6,23 +7,33 @@ service cloud.firestore {
     }
 
     match /admins/{adminId} {
-      allow read, write: if false; // Should be managed by superadmin
+      allow read, write: if false; 
     }
     
     match /districtAdmins/{districtId} {
-       allow read, write: if false; // Should be managed by superadmin
+       allow read, write: if false;
     }
 
     match /anonymousIssues/{issueId} {
       allow read: if true;
       allow create: if true;
-      allow update, delete: if false; // Anonymous issues cannot be changed
+      allow update: if request.auth != null && 'votes' in request.resource.data && request.resource.data.keys().size() == 1;
+      allow delete: if false; 
+
+      match /votes/{userId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
     
     match /profiledIssues/{issueId} {
       allow read: if true;
       allow create: if request.auth != null;
-      allow update, delete: if request.auth != null && request.resource.data.reporterId == request.auth.uid;
+      allow update: if (request.auth != null && request.resource.data.reporterId == request.auth.uid) || (request.auth != null && 'votes' in request.resource.data && request.resource.data.keys().size() == 1);
+      allow delete: if request.auth != null && request.resource.data.reporterId == request.auth.uid;
+
+      match /votes/{userId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
   }
 }
