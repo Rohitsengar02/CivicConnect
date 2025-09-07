@@ -11,9 +11,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { User, Shield, Upload, X, MapPin, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { db, storage } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -120,7 +119,6 @@ export function ReportIssueForm() {
         }
     }, [reportType, user, form]);
 
-
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const files = Array.from(e.target.files);
@@ -130,6 +128,19 @@ export function ReportIssueForm() {
             const previews = currentFiles.map(file => URL.createObjectURL(file));
             setImagePreviews(previews);
         }
+    };
+    
+    const uploadToCloudinary = async (file: File) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!);
+    
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`, {
+            method: "POST",
+            body: formData,
+        });
+        const data = await res.json();
+        return data.secure_url;
     };
 
     const removeImage = (index: number) => {
@@ -152,11 +163,7 @@ export function ReportIssueForm() {
         setIsSubmitting(true);
         try {
             const imageUrls = await Promise.all(
-                imageFiles.map(async (file) => {
-                    const storageRef = ref(storage, `issues/${Date.now()}-${file.name}`);
-                    await uploadBytes(storageRef, file);
-                    return await getDownloadURL(storageRef);
-                })
+                imageFiles.map(async (file) => uploadToCloudinary(file))
             );
 
             let collectionName = 'anonymousIssues';
@@ -173,10 +180,11 @@ export function ReportIssueForm() {
             };
 
             if (data.reportType === 'profiled' && user) {
-                collectionName = 'issues';
+                collectionName = 'profiledIssues';
                 issueData.reporterId = user.uid;
                 issueData.reporterName = user.displayName;
                 issueData.reporterEmail = user.email;
+                issueData.avatarUrl = user.photoURL;
             }
 
             const docRef = await addDoc(collection(db, collectionName), issueData);

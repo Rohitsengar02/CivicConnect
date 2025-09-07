@@ -21,8 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Link from "next/link";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { auth, storage, db } from "@/lib/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { auth, db } from "@/lib/firebase";
 import { doc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -50,6 +49,19 @@ export default function SignupPage() {
       password: "",
     },
   });
+  
+  const uploadToCloudinary = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!);
+
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`, {
+        method: "POST",
+        body: formData,
+    });
+    const data = await res.json();
+    return data.secure_url;
+  };
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
@@ -59,9 +71,7 @@ export default function SignupPage() {
       
       let photoURL = "";
       if (values.profileImage) {
-          const storageRef = ref(storage, `profile-images/${user.uid}`);
-          await uploadBytes(storageRef, values.profileImage);
-          photoURL = await getDownloadURL(storageRef);
+          photoURL = await uploadToCloudinary(values.profileImage);
       }
 
       await updateProfile(user, {
