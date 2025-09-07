@@ -43,24 +43,25 @@ interface Issue {
   imageUrls: string[];
 }
 
-export default function ManageIssueDetailPage({ params }: { params: { id: string } }) {
+export default function ManageIssueDetailPage({ params: { id } }: { params: { id: string } }) {
   const [issue, setIssue] = useState<Issue | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [newStatus, setNewStatus] = useState("");
+  const [originalStatus, setOriginalStatus] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const db = getFirestore(app);
   const { toast } = useToast();
 
   useEffect(() => {
     const fetchIssue = async () => {
-      if (!params.id) return;
+      if (!id) return;
       setIsLoading(true);
       try {
-        let issueRef = doc(db, "profiledIssues", params.id);
+        let issueRef = doc(db, "profiledIssues", id);
         let issueSnap = await getDoc(issueRef);
         
         if (!issueSnap.exists()) {
-            issueRef = doc(db, "anonymousIssues", params.id);
+            issueRef = doc(db, "anonymousIssues", id);
             issueSnap = await getDoc(issueRef);
         }
         
@@ -68,6 +69,7 @@ export default function ManageIssueDetailPage({ params }: { params: { id: string
           const issueData = { id: issueSnap.id, ...issueSnap.data() } as Issue;
           setIssue(issueData);
           setNewStatus(issueData.status);
+          setOriginalStatus(issueData.status);
         } else {
           console.log("No such document!");
         }
@@ -83,7 +85,7 @@ export default function ManageIssueDetailPage({ params }: { params: { id: string
       }
     };
     fetchIssue();
-  }, [params.id, db, toast]);
+  }, [id, db, toast]);
 
   const handleSaveChanges = async () => {
       if (!issue || newStatus === issue.status) return;
@@ -104,7 +106,7 @@ export default function ManageIssueDetailPage({ params }: { params: { id: string
             const notificationRef = collection(db, "users", issue.reporterId, "notifications");
             await addDoc(notificationRef, {
                 issueId: issue.id,
-                message: `The status of your issue "${issue.title}" has been updated to ${newStatus}.`,
+                message: `The status of your issue "${issue.title}" has changed from ${issue.status} to ${newStatus}.`,
                 type: 'status_update',
                 read: false,
                 createdAt: serverTimestamp(),
