@@ -1,18 +1,12 @@
+
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -57,7 +51,7 @@ const issues = [
     status: "Acknowledgment",
     date: "2024-07-26",
   },
-   {
+  {
     id: "IS-005",
     title: "Fallen Tree Blocking Road",
     reporter: "Amit Patel",
@@ -68,71 +62,65 @@ const issues = [
 ];
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" } = {
-    Pending: "destructive",
-    Confirmation: "secondary",
-    Acknowledgment: "outline",
-    Resolution: "default"
-}
-
+  Pending: "destructive",
+  Confirmation: "secondary",
+  Acknowledgment: "outline",
+  Resolution: "default",
+};
 
 export default function ManageIssuesPage() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Manage Issues</CardTitle>
-        <CardDescription>
-          Review, update, and resolve reported civic issues.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Title</TableHead>
-              <TableHead>Reporter</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {issues.map((issue) => (
-              <TableRow key={issue.id}>
-                <TableCell className="font-medium">{issue.id}</TableCell>
-                <TableCell>{issue.title}</TableCell>
-                <TableCell>{issue.reporter}</TableCell>
-                <TableCell>{issue.category}</TableCell>
-                <TableCell>
-                    <Badge variant={statusVariant[issue.status]}>{issue.status}</Badge>
-                </TableCell>
-                <TableCell>{issue.date}</TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Toggle menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
-                      <DropdownMenuItem>Update Status</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive">
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <div>
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Manage Issues</CardTitle>
+          <CardDescription>
+            Review, update, and resolve reported civic issues.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {issues.map((issue) => (
+          <Card key={issue.id} className="flex flex-col">
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <CardTitle className="text-lg">{issue.title}</CardTitle>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button aria-haspopup="true" size="icon" variant="ghost">
+                      <MoreHorizontal className="h-4 w-4" />
+                      <span className="sr-only">Toggle menu</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem>View Details</DropdownMenuItem>
+                    <DropdownMenuItem>Update Status</DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-destructive">
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <CardDescription>ID: {issue.id}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex-grow space-y-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Reporter</p>
+                <p className="text-sm">{issue.reporter}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Category</p>
+                <p className="text-sm">{issue.category}</p>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-between items-center">
+                <Badge variant={statusVariant[issue.status]}>{issue.status}</Badge>
+                <p className="text-sm text-muted-foreground">{issue.date}</p>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+    </div>
   );
 }
