@@ -43,7 +43,8 @@ interface Issue {
   imageUrls: string[];
 }
 
-export default function ManageIssueDetailPage({ params: { id } }: { params: { id: string } }) {
+export default function ManageIssueDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const [issue, setIssue] = useState<Issue | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [newStatus, setNewStatus] = useState("");
@@ -88,7 +89,7 @@ export default function ManageIssueDetailPage({ params: { id } }: { params: { id
   }, [id, db, toast]);
 
   const handleSaveChanges = async () => {
-      if (!issue || newStatus === issue.status) return;
+      if (!issue || newStatus === originalStatus) return;
       setIsSaving(true);
       try {
         let issueRef = doc(db, "profiledIssues", issue.id);
@@ -106,7 +107,7 @@ export default function ManageIssueDetailPage({ params: { id } }: { params: { id
             const notificationRef = collection(db, "users", issue.reporterId, "notifications");
             await addDoc(notificationRef, {
                 issueId: issue.id,
-                message: `The status of your issue "${issue.title}" has changed from ${issue.status} to ${newStatus}.`,
+                message: `The status of your issue "${issue.title}" has changed from ${originalStatus} to ${newStatus}.`,
                 type: 'status_update',
                 read: false,
                 createdAt: serverTimestamp(),
@@ -114,6 +115,8 @@ export default function ManageIssueDetailPage({ params: { id } }: { params: { id
         }
         
         setIssue(prev => prev ? {...prev, status: newStatus} : null);
+        setOriginalStatus(newStatus);
+
         toast({
             title: "Success",
             description: "Issue status has been updated."
@@ -234,7 +237,7 @@ export default function ManageIssueDetailPage({ params: { id } }: { params: { id
                             </SelectContent>
                         </Select>
                      </div>
-                     <Button className="w-full" onClick={handleSaveChanges} disabled={isSaving || newStatus === issue.status}>
+                     <Button className="w-full" onClick={handleSaveChanges} disabled={isSaving || newStatus === originalStatus}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Save Changes
                     </Button>
