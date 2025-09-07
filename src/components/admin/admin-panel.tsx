@@ -99,11 +99,11 @@ export function AdminPanel() {
     setError(null);
     const districtId = `${data.state}-${data.district}`.toLowerCase().replace(/\s+/g, '-');
     try {
-      const districtAdminRef = doc(db, "districtAdmins", districtId);
-      const districtAdminDoc = await getDoc(districtAdminRef);
+        const q = query(collection(db, "admins"), where("district", "==", data.district), where("state", "==", data.state));
+        const querySnapshot = await getDocs(q);
       
-      if (districtAdminDoc.exists()) {
-        setError(`An admin for ${data.district}, ${data.state} already exists.`);
+      if (!querySnapshot.empty) {
+        setError(`An admin for ${data.district}, ${data.state} already exists or an application is pending.`);
       } else {
         setStep(3); // Go to registration form
       }
@@ -117,43 +117,31 @@ export function AdminPanel() {
   const onRegistrationSubmit = async (data: RegistrationValues) => {
     setIsLoading(true);
     setError(null);
-    const districtId = `${selectedState}-${selectedDistrict}`.toLowerCase().replace(/\s+/g, '-');
 
     try {
-      // Check if district is already taken one more time before creating user
-      const districtAdminRef = doc(db, "districtAdmins", districtId);
-      const districtAdminDoc = await getDoc(districtAdminRef);
-      if (districtAdminDoc.exists()) {
-        setError(`An admin for this district was just registered. Please select another.`);
-        setIsLoading(false);
-        setStep(2);
-        return;
-      }
+        const q = query(collection(db, "admins"), where("district", "==", selectedDistrict), where("state", "==", selectedState));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            setError(`An admin for this district was just registered. Please select another.`);
+            setIsLoading(false);
+            setStep(2);
+            return;
+        }
 
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const user = userCredential.user;
-
-      const batch = writeBatch(db);
-
-      const newAdminRef = doc(db, "admins", user.uid);
-      batch.set(newAdminRef, {
-        name: data.name,
-        email: data.email,
-        state: selectedState,
-        district: selectedDistrict,
-        role: "admin",
-        status: "pending",
-        createdAt: new Date(),
-      });
-
-      const newDistrictAdminRef = doc(db, "districtAdmins", districtId);
-      batch.set(newDistrictAdminRef, {
-          adminId: user.uid,
-          state: selectedState,
-          districtName: selectedDistrict,
-      });
-
-      await batch.commit();
+      
+      await writeBatch(db)
+        .set(doc(db, "admins", user.uid), {
+            name: data.name,
+            email: data.email,
+            state: selectedState,
+            district: selectedDistrict,
+            role: "admin",
+            status: "pending",
+            createdAt: new Date(),
+        })
+        .commit();
       
       toast({
         title: "Registration Successful!",
