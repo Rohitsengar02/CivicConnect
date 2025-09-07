@@ -1,8 +1,10 @@
+
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { HeroSection } from "@/components/hero-section";
 import { IssueGrid } from "@/components/issue-grid";
 import { HomeFilters } from "@/components/home-filters";
+import { Footer } from "@/components/layout/footer";
 
 export default function Home() {
   return (
@@ -17,6 +19,7 @@ export default function Home() {
           <IssueGrid />
         </div>
       </main>
+      <Footer />
       <MobileNav />
     </div>
   );

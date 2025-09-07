@@ -1,6 +1,8 @@
+
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { ReportIssueForm } from "@/components/report-issue-form";
+import { Footer } from "@/components/layout/footer";
 
 export default function ReportIssuePage() {
   return (
@@ -11,6 +13,7 @@ export default function ReportIssuePage() {
             <ReportIssueForm />
         </div>
       </main>
+      <Footer />
       <MobileNav />
     </div>
   );

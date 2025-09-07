@@ -1,5 +1,7 @@
+
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
+import { Footer } from "@/components/layout/footer";
 
 export default function ProfilePage() {
   return (
@@ -17,6 +19,7 @@ export default function ProfilePage() {
           </div>
         </div>
       </main>
+      <Footer />
       <MobileNav />
     </div>
   );

@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowUp, ArrowDown, MapPin, Share2, Bookmark, MessageSquare, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { Footer } from "@/components/layout/footer";
 
 // Mock data - in a real app, you'd fetch this based on the `id` param
 const issues = [
@@ -174,6 +175,7 @@ export default function IssueDetailPage({ params }: { params: { id: string } }) 
             </div>
         </div>
       </main>
+      <Footer />
       <MobileNav />
     </div>
   );

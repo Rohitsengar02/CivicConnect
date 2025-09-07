@@ -1,7 +1,9 @@
+
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { ExploreFilters } from "@/components/explore-filters";
 import { IssueGrid } from "@/components/issue-grid";
+import { Footer } from "@/components/layout/footer";
 
 export default function ExplorePage() {
   return (
@@ -13,6 +15,7 @@ export default function ExplorePage() {
             <IssueGrid />
         </div>
       </main>
+      <Footer />
       <MobileNav />
     </div>
   );
