@@ -175,18 +175,15 @@ export function AdminPanel() {
  const onLoginSubmit = async (data: LoginValues) => {
     setIsLoading(true);
     setError(null);
-
-    // Super Admin check
-    if (data.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL && data.password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
-        sessionStorage.setItem('userRole', 'superadmin');
-        router.push('/admin/dashboard');
-        return;
-    }
-
-    // District Admin check
     try {
         const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
         const user = userCredential.user;
+
+        if (user.uid === process.env.NEXT_PUBLIC_SUPER_ADMIN_UID) {
+            sessionStorage.setItem('userRole', 'superadmin');
+            router.push('/admin/dashboard');
+            return;
+        }
 
         const adminDocRef = doc(db, "admins", user.uid);
         const adminDoc = await getDoc(adminDocRef);
