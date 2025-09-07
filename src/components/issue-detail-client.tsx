@@ -15,13 +15,13 @@ import {
 } from "@/components/ui/carousel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowUp, ArrowDown, MapPin, Share2, Bookmark, MessageSquare } from "lucide-react";
+import { ArrowUp, ArrowDown, MapPin, Share2, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, runTransaction, getDoc, DocumentData } from "firebase/firestore";
+import { doc, runTransaction, getDoc, DocumentData, setDoc, deleteDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 export interface Issue {
@@ -60,13 +60,15 @@ export function IssueDetailClient({ issue }: { issue: Issue }) {
     const [voted, setVoted] = useState<"up" | "down" | null>(null);
     const [isVoting, setIsVoting] = useState(false);
     const [displayDate, setDisplayDate] = useState("");
+    const [isSaved, setIsSaved] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        // This effect runs only on the client, after hydration
         setDisplayDate(new Date(issue.createdAt).toLocaleDateString());
 
-        const checkUserVote = async () => {
+        const checkUserStatus = async () => {
             if (user) {
+                // Check vote status
                 const collectionsToTry = ['profiledIssues', 'anonymousIssues'];
                 for (const coll of collectionsToTry) {
                     const voteRef = doc(db, coll, issue.id, "votes", user.uid);
@@ -76,9 +78,13 @@ export function IssueDetailClient({ issue }: { issue: Issue }) {
                         break;
                     }
                 }
+                 // Check saved status
+                const savedIssueRef = doc(db, "users", user.uid, "savedIssues", issue.id);
+                const savedIssueSnap = await getDoc(savedIssueRef);
+                setIsSaved(savedIssueSnap.exists());
             }
         };
-        checkUserVote();
+        checkUserStatus();
       }, [issue.id, user, issue.createdAt]);
 
     const handleVote = async (direction: "up" | "down") => {
@@ -131,7 +137,7 @@ export function IssueDetailClient({ issue }: { issue: Issue }) {
                 let newVoteCount = issueSnap.data().votes || 0;
                 const currentVote = voteSnap.data()?.direction;
   
-                if (voteSnap.exists() && currentVote === direction) { // Unvoting
+                if (voteSnap.exists() && currentVote === direction) { 
                     newVoteCount += (direction === 'up' ? -1 : 1);
                     transaction.delete(voteRef);
                     setVoted(null);
@@ -153,11 +159,68 @@ export function IssueDetailClient({ issue }: { issue: Issue }) {
             setIsVoting(false);
         }
     };
+    
+     const handleSave = async () => {
+        if (!user) {
+            toast({ title: "Login Required", description: "You must be logged in to save issues." });
+            router.push("/login");
+            return;
+        }
+        if (isSaving) return;
+        setIsSaving(true);
+        const savedIssueRef = doc(db, "users", user.uid, "savedIssues", issue.id);
+
+        try {
+            if (isSaved) {
+                await deleteDoc(savedIssueRef);
+                setIsSaved(false);
+                toast({ title: "Unsaved", description: `"${issue.title}" removed from your saved issues.`});
+            } else {
+                await setDoc(savedIssueRef, {
+                    title: issue.title,
+                    imageUrl: issue.imageUrls?.[0] || 'https://picsum.photos/400/300',
+                    createdAt: new Date(),
+                });
+                setIsSaved(true);
+                toast({ title: "Saved!", description: `"${issue.title}" added to your saved issues.`});
+            }
+        } catch (error) {
+            console.error("Save/unsave failed:", error);
+            toast({ title: "Error", description: "Could not update saved status. Please try again.", variant: "destructive" });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleShare = async () => {
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: `CivicConnect: ${issue.title}`,
+                    text: `Check out this issue on CivicConnect: ${issue.description}`,
+                    url: window.location.href,
+                });
+            } catch (error) {
+                console.error('Error sharing:', error);
+                toast({
+                    variant: 'destructive',
+                    title: 'Error',
+                    description: 'Could not share the issue at this time.',
+                });
+            }
+        } else {
+            // Fallback for browsers that don't support the Web Share API
+            navigator.clipboard.writeText(window.location.href);
+            toast({
+                title: 'Link Copied',
+                description: 'Issue link copied to your clipboard.',
+            });
+        }
+    };
 
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* Image Gallery */}
         <div className="lg:col-span-3">
             <Carousel className="w-full">
                 <CarouselContent>
@@ -183,7 +246,6 @@ export function IssueDetailClient({ issue }: { issue: Issue }) {
             </Carousel>
         </div>
 
-        {/* Issue Details */}
         <div className="lg:col-span-2">
             <div className="p-6 rounded-xl border bg-card/50 backdrop-blur-lg flex flex-col h-full">
                 <div className="flex justify-between items-start">
@@ -260,16 +322,15 @@ export function IssueDetailClient({ issue }: { issue: Issue }) {
 
                 <div className="mt-auto pt-6 flex flex-col gap-2">
                     <div className="flex gap-2">
-                        <Button variant="outline" className="w-full"><Share2 className="mr-2 h-4 w-4" /> Share</Button>
-                        <Button variant="outline" className="w-full"><Bookmark className="mr-2 h-4 w-4" /> Save</Button>
+                        <Button variant="outline" className="w-full" onClick={handleShare}><Share2 className="mr-2 h-4 w-4" /> Share</Button>
+                        <Button variant="outline" className="w-full" onClick={handleSave} disabled={isSaving}>
+                            <Bookmark className={cn("mr-2 h-4 w-4", isSaved && "fill-primary text-primary")} /> 
+                            {isSaved ? 'Saved' : 'Save'}
+                        </Button>
                     </div>
-                     <Button className="w-full"><MessageSquare className="mr-2 h-4 w-4" /> Add Comment</Button>
                 </div>
-
             </div>
         </div>
     </div>
   );
 }
-
-    
