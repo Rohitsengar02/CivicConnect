@@ -171,6 +171,13 @@ export function AdminPanel() {
   const onLoginSubmit = async (data: LoginValues) => {
     setIsLoading(true);
     setError(null);
+
+    // Superadmin check
+    if (data.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL && data.password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
+        router.push('/admin/dashboard');
+        return;
+    }
+
     try {
         const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
         const user = userCredential.user;
