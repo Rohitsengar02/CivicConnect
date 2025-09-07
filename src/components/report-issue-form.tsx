@@ -8,7 +8,11 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Shield, Upload, X, ChevronsUpDown, Check, MapPin } from "lucide-react";
+import { User, Shield, Upload, X, ChevronsUpDown, Check, MapPin, Loader2 } from "lucide-react";
+
+import { db, storage } from "@/lib/firebase";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,9 +31,8 @@ import { useToast } from "@/hooks/use-toast";
 
 const reportIssueSchema = z.object({
   reportType: z.enum(["profiled", "anonymous"]),
-  name: z.string().optional(),
-  email: z.string().email().optional(),
-  password: z.string().min(8).optional(),
+  reporterName: z.string().optional(),
+  reporterEmail: z.string().email().optional(),
   avatar: z.any().optional(),
   state: z.string({ required_error: "Please select a state." }),
   district: z.string({ required_error: "Please select a district." }),
@@ -49,11 +52,12 @@ interface Location {
 export function ReportIssueForm() {
     const [reportType, setReportType] = useState<"profiled" | "anonymous">("anonymous");
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submissionData, setSubmissionData] = useState<{ txHash: string; issueTitle: string } | null>(null);
+    const [submissionData, setSubmissionData] = useState<{ issueId: string; issueTitle: string } | null>(null);
     const [location, setLocation] = useState<Location | null>(null);
-    const [hasLocationPermission, setHasLocationPermission] = useState(true); // Assume true initially
+    const [hasLocationPermission, setHasLocationPermission] = useState(true);
     const [districts, setDistricts] = useState<string[]>([]);
     
     const { toast } = useToast();
@@ -66,7 +70,7 @@ export function ReportIssueForm() {
         },
     });
 
-    useEffect(() => {
+     useEffect(() => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 async (position) => {
@@ -77,7 +81,6 @@ export function ReportIssueForm() {
                     };
                     setLocation(newLocation);
 
-                    // Fetch address details
                     try {
                         const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${newLocation.lat}&lon=${newLocation.lng}`);
                         const data = await response.json();
@@ -115,16 +118,20 @@ export function ReportIssueForm() {
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const files = Array.from(e.target.files);
-            const previews = files.map(file => URL.createObjectURL(file));
-            setImagePreviews(prev => [...prev, ...previews].slice(0, 5));
-            form.setValue("images", [...(form.getValues("images") || []), ...files].slice(0, 5));
+            const currentFiles = [...imageFiles, ...files].slice(0, 5);
+            setImageFiles(currentFiles);
+
+            const previews = currentFiles.map(file => URL.createObjectURL(file));
+            setImagePreviews(previews);
         }
     };
 
     const removeImage = (index: number) => {
-        setImagePreviews(prev => prev.filter((_, i) => i !== index));
-        const currentImages = form.getValues("images");
-        form.setValue("images", currentImages.filter((_, i) => i !== index));
+        const newImageFiles = imageFiles.filter((_, i) => i !== index);
+        setImageFiles(newImageFiles);
+        
+        const newImagePreviews = newImageFiles.map(file => URL.createObjectURL(file));
+        setImagePreviews(newImagePreviews);
     };
 
     const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,8 +142,8 @@ export function ReportIssueForm() {
         }
     }
     
-    const onSubmit = (data: ReportIssueFormValues) => {
-        if (!hasLocationPermission) {
+    const onSubmit = async (data: ReportIssueFormValues) => {
+        if (!hasLocationPermission || !location) {
             toast({
                 variant: 'destructive',
                 title: 'Location Access Required',
@@ -145,20 +152,48 @@ export function ReportIssueForm() {
             return;
         }
         setIsSubmitting(true);
-        // Simulate API call and blockchain transaction
-        setTimeout(() => {
-            const mockTxHash = `5xJ3t2p${Math.random().toString(36).substring(2, 15)}...${Math.random().toString(36).substring(2, 15)}`;
-            setSubmissionData({ txHash: mockTxHash, issueTitle: data.title });
-            setIsSubmitting(false);
-        }, 2000);
+        try {
+            // 1. Upload images to Firebase Storage
+            const imageUrls = await Promise.all(
+                imageFiles.map(async (file) => {
+                    const storageRef = ref(storage, `issues/${Date.now()}-${file.name}`);
+                    await uploadBytes(storageRef, file);
+                    return await getDownloadURL(storageRef);
+                })
+            );
+
+            // 2. Add issue to Firestore
+            const issueData = {
+                ...data,
+                imageUrls,
+                location,
+                status: "Pending",
+                createdAt: serverTimestamp(),
+            };
+            delete issueData.images; // remove file list
+            delete issueData.avatar; // handle avatar separately if needed
+
+            const docRef = await addDoc(collection(db, "issues"), issueData);
+            setSubmissionData({ issueId: docRef.id, issueTitle: data.title });
+
+        } catch (error) {
+            console.error("Error submitting issue: ", error);
+            toast({
+                title: "Submission Failed",
+                description: "There was an error submitting your issue. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+             setIsSubmitting(false);
+        }
     };
 
     const resetForm = () => {
-        form.reset();
+        form.reset({ reportType: 'anonymous', images: [] });
         setImagePreviews([]);
+        setImageFiles([]);
         setAvatarPreview(null);
         setSubmissionData(null);
-        setReportType("anonymous");
     }
 
     const selectedState = form.watch('state');
@@ -225,37 +260,15 @@ export function ReportIssueForm() {
                                     transition={{ duration: 0.3 }}
                                     className="space-y-6 p-6 border rounded-lg bg-secondary/30"
                                 >
-                                    <h3 className="text-lg font-semibold text-center">Create Your Profile</h3>
-                                    <div className="flex flex-col items-center gap-4">
-                                        <Controller
-                                            name="avatar"
-                                            control={form.control}
-                                            render={({ field }) => (
-                                                <div className="flex flex-col items-center gap-2">
-                                                    <Avatar className="w-24 h-24">
-                                                        <AvatarImage src={avatarPreview || undefined} alt="User Avatar" />
-                                                        <AvatarFallback><User className="w-10 h-10" /></AvatarFallback>
-                                                    </Avatar>
-                                                    <Button type="button" size="sm" variant="outline" onClick={() => document.getElementById('avatar-upload')?.click()}>
-                                                        <Upload className="mr-2" /> Upload Avatar
-                                                    </Button>
-                                                    <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-                                                </div>
-                                            )}
-                                        />
-                                    </div>
+                                    <h3 className="text-lg font-semibold text-center">Your Profile</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <Label htmlFor="name">Full Name</Label>
-                                            <Input id="name" {...form.register("name")} placeholder="John Doe" />
+                                            <Label htmlFor="reporterName">Full Name</Label>
+                                            <Input id="reporterName" {...form.register("reporterName")} placeholder="John Doe" />
                                         </div>
                                         <div>
-                                            <Label htmlFor="email">Email</Label>
-                                            <Input id="email" type="email" {...form.register("email")} placeholder="john.doe@example.com" />
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <Label htmlFor="password">Password</Label>
-                                            <Input id="password" type="password" {...form.register("password")} placeholder="********" />
+                                            <Label htmlFor="reporterEmail">Email</Label>
+                                            <Input id="reporterEmail" type="email" {...form.register("reporterEmail")} placeholder="john.doe@example.com" />
                                         </div>
                                     </div>
                                 </motion.div>
@@ -381,6 +394,7 @@ export function ReportIssueForm() {
                         </div>
                         <motion.div whileTap={{ scale: 0.99 }}>
                             <Button type="submit" size="lg" className="w-full font-bold text-lg" disabled={isSubmitting || !hasLocationPermission}>
+                                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                 {isSubmitting ? "Submitting..." : "Submit Report"}
                             </Button>
                         </motion.div>
@@ -391,11 +405,9 @@ export function ReportIssueForm() {
             <IssueSubmittedDialog
                 isOpen={!!submissionData}
                 onClose={resetForm}
-                txHash={submissionData?.txHash}
+                issueId={submissionData?.issueId}
                 issueTitle={submissionData?.issueTitle}
             />
         </>
     );
 }
-
-    

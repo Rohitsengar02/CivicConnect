@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -11,28 +12,29 @@ import {
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Copy, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
 
 type IssueSubmittedDialogProps = {
   isOpen: boolean;
   onClose: () => void;
-  txHash?: string;
+  issueId?: string;
   issueTitle?: string;
 };
 
 export function IssueSubmittedDialog({
   isOpen,
   onClose,
-  txHash,
+  issueId,
   issueTitle,
 }: IssueSubmittedDialogProps) {
   const { toast } = useToast();
 
   const copyToClipboard = () => {
-    if (txHash) {
-      navigator.clipboard.writeText(txHash);
+    if (issueId) {
+      navigator.clipboard.writeText(issueId);
       toast({
         title: "Copied to clipboard!",
-        description: "Transaction hash has been copied.",
+        description: "Issue ID has been copied.",
       });
     }
   };
@@ -46,19 +48,18 @@ export function IssueSubmittedDialog({
           </div>
           <DialogTitle className="text-center text-2xl font-headline mt-4">
             Issue Reported Successfully!
-          </DialogTitle>
+          </"DialogTitle>
           <DialogDescription className="text-center">
-            Your report for "{issueTitle}" has been submitted.
+            Your report for "{issueTitle}" has been submitted. Thank you for helping improve your community.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <p className="text-sm text-center text-muted-foreground">
-            Your submission has been recorded with the following (mock)
-            transaction hash on the Solana blockchain.
+            Your issue has been saved with the following ID. You can use it to track the status.
           </p>
           <div className="flex items-center space-x-2 rounded-md border bg-secondary p-2">
             <p className="text-sm font-mono text-muted-foreground truncate flex-1">
-              {txHash}
+              {issueId}
             </p>
             <Button
               variant="ghost"
@@ -71,19 +72,17 @@ export function IssueSubmittedDialog({
           </div>
         </div>
         <DialogFooter className="sm:justify-center flex-col sm:flex-row gap-2">
-           <a
-            href={`https://solscan.io/tx/${txHash}?cluster=devnet`}
-            target="_blank"
-            rel="noopener noreferrer"
+           <Link
+            href={`/issue/${issueId}`}
             className="w-full"
             >
                 <Button type="button" variant="secondary" className="w-full">
                     <ExternalLink className="mr-2 h-4 w-4" />
-                    View on Explorer
+                    View Your Issue
                 </Button>
-            </a>
+            </Link>
           <Button type="button" onClick={onClose} className="w-full">
-            Report Another Issue
+            Close
           </Button>
         </DialogFooter>
       </DialogContent>

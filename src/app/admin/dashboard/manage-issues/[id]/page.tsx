@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import {
   Carousel,
@@ -12,7 +13,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import {
     Select,
@@ -22,48 +22,97 @@ import {
     SelectTrigger,
     SelectValue,
   } from "@/components/ui/select";
-import { ArrowLeft, MessageSquare, Send, UserCheck, ClipboardList } from "lucide-react";
+import { ArrowLeft, MessageSquare, Send, UserCheck, ClipboardList, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { getFirestore, doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
+import { app } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
 
-const issues = [
-    {
-      id: "IS-001",
-      title: "Large Pothole on Main St",
-      reporter: "Ravi Kumar",
-      category: "Roads",
-      status: "Confirmation",
-      date: "2024-07-28",
-      description: "A large and dangerous pothole has formed on Main Street, near the central library. It has already caused damage to several vehicles. It needs to be repaired urgently to prevent any accidents.",
-      district: "Ranchi",
-      images: [
-        "https://picsum.photos/800/600?random=1",
-        "https://picsum.photos/800/600?random=11",
-        "https://picsum.photos/800/600?random=12",
-      ],
-    },
-    {
-      id: "IS-002",
-      title: "Streetlight not working",
-      reporter: "Priya Sharma",
-      category: "Electricity",
-      status: "Pending",
-      date: "2024-07-28",
-      description: "The streetlight on Elm Street has been out for three days. It's very dark at night and feels unsafe.",
-      district: "Dhanbad",
-      images: [
-        "https://picsum.photos/800/600?random=2",
-        "https://picsum.photos/800/600?random=21",
-      ],
-    },
-];
-
-const issue = issues[0]; // Mock: find issue by params.id in a real app
+interface Issue {
+  id: string;
+  title: string;
+  reporterName?: string;
+  reporterEmail?: string;
+  category: string;
+  status: string;
+  createdAt: Timestamp;
+  description: string;
+  district: string;
+  state: string;
+  imageUrls: string[];
+}
 
 export default function ManageIssueDetailPage({ params }: { params: { id: string } }) {
-  
-  // In a real app, you would use params.id to fetch the correct issue
-  // const issue = issues.find(i => i.id === params.id);
-  // if (!issue) return <div>Issue not found</div>;
+  const [issue, setIssue] = useState<Issue | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [newStatus, setNewStatus] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const db = getFirestore(app);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchIssue = async () => {
+      if (!params.id) return;
+      setIsLoading(true);
+      try {
+        const issueRef = doc(db, "issues", params.id);
+        const issueSnap = await getDoc(issueRef);
+        if (issueSnap.exists()) {
+          const issueData = { id: issueSnap.id, ...issueSnap.data() } as Issue;
+          setIssue(issueData);
+          setNewStatus(issueData.status);
+        } else {
+          console.log("No such document!");
+        }
+      } catch (error) {
+        console.error("Error fetching issue:", error);
+        toast({
+            title: "Error",
+            description: "Failed to fetch issue details.",
+            variant: "destructive"
+        })
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchIssue();
+  }, [params.id, db, toast]);
+
+  const handleSaveChanges = async () => {
+      if (!issue) return;
+      setIsSaving(true);
+      try {
+        const issueRef = doc(db, "issues", issue.id);
+        await updateDoc(issueRef, {
+            status: newStatus
+        });
+        setIssue(prev => prev ? {...prev, status: newStatus} : null);
+        toast({
+            title: "Success",
+            description: "Issue status has been updated."
+        });
+      } catch (error) {
+         toast({
+            title: "Error",
+            description: "Failed to update issue status.",
+            variant: "destructive"
+        });
+      } finally {
+          setIsSaving(false);
+      }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!issue) {
+    return <div>Issue not found.</div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -77,29 +126,31 @@ export default function ManageIssueDetailPage({ params }: { params: { id: string
             <CardHeader>
                 <div className="flex justify-between items-center">
                     <CardTitle className="text-2xl">{issue.title}</CardTitle>
-                    <Badge variant="outline">{issue.category}</Badge>
+                    <Badge variant="outline">{issue.category || 'General'}</Badge>
                 </div>
-                <CardDescription>ID: {issue.id} | Reported on: {issue.date} | District: {issue.district}</CardDescription>
+                <CardDescription>ID: {issue.id} | Reported on: {issue.createdAt.toDate().toLocaleDateString()} | District: {issue.district}</CardDescription>
             </CardHeader>
             <CardContent>
-              <Carousel className="w-full mb-6">
-                <CarouselContent>
-                  {issue.images.map((src, index) => (
-                    <CarouselItem key={index}>
-                      <div className="aspect-video relative">
-                        <Image
-                          src={src}
-                          alt={`${issue.title} - image ${index + 1}`}
-                          fill
-                          className="object-cover rounded-lg"
-                        />
-                      </div>
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselPrevious className="left-4" />
-                <CarouselNext className="right-4" />
-              </Carousel>
+              {issue.imageUrls && issue.imageUrls.length > 0 ? (
+                <Carousel className="w-full mb-6">
+                    <CarouselContent>
+                    {issue.imageUrls.map((src, index) => (
+                        <CarouselItem key={index}>
+                        <div className="aspect-video relative">
+                            <Image
+                            src={src}
+                            alt={`${issue.title} - image ${index + 1}`}
+                            fill
+                            className="object-cover rounded-lg"
+                            />
+                        </div>
+                        </CarouselItem>
+                    ))}
+                    </CarouselContent>
+                    <CarouselPrevious className="left-4" />
+                    <CarouselNext className="right-4" />
+                </Carousel>
+              ) : <p className="text-muted-foreground mb-4">No images were provided for this issue.</p>}
               <div>
                 <h3 className="font-semibold text-lg mb-2">Description</h3>
                 <p className="text-muted-foreground">{issue.description}</p>
@@ -112,7 +163,6 @@ export default function ManageIssueDetailPage({ params }: { params: { id: string
             </CardHeader>
             <CardContent>
                 <div className="space-y-4">
-                    {/* Mock chat messages */}
                     <div className="text-sm text-muted-foreground">No messages yet.</div>
                     <div className="flex gap-2">
                         <Textarea placeholder="Type your message... (e.g., @maintenance-team)" />
@@ -128,9 +178,8 @@ export default function ManageIssueDetailPage({ params }: { params: { id: string
                     <CardTitle className="flex items-center gap-2"><UserCheck className="h-5 w-5" /> Reporter Info</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="font-semibold">{issue.reporter}</p>
-                    <p className="text-sm text-muted-foreground">_email_not_available_</p>
-                    <Button variant="link" className="p-0 h-auto">View Profile</Button>
+                    <p className="font-semibold">{issue.reporterName || 'Anonymous'}</p>
+                    <p className="text-sm text-muted-foreground">{issue.reporterEmail || 'No email provided'}</p>
                 </CardContent>
             </Card>
             <Card>
@@ -144,37 +193,24 @@ export default function ManageIssueDetailPage({ params }: { params: { id: string
                      </div>
                      <div>
                         <label htmlFor="update-status" className="text-sm font-medium">Update Status</label>
-                        <Select>
+                        <Select value={newStatus} onValueChange={setNewStatus}>
                             <SelectTrigger id="update-status">
                                 <SelectValue placeholder="Select new status" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectGroup>
-                                <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="confirmation">Confirmation</SelectItem>
-                                <SelectItem value="acknowledgment">Acknowledgment</SelectItem>
-                                <SelectItem value="resolution">Resolution</SelectItem>
+                                    <SelectItem value="Pending">Pending</SelectItem>
+                                    <SelectItem value="Confirmation">Confirmation</SelectItem>
+                                    <SelectItem value="Acknowledgment">Acknowledgment</SelectItem>
+                                    <SelectItem value="Resolution">Resolution</SelectItem>
                                 </SelectGroup>
                             </SelectContent>
                         </Select>
                      </div>
-                      <div>
-                        <label htmlFor="assign-dept" className="text-sm font-medium">Assign Department</label>
-                        <Select>
-                            <SelectTrigger id="assign-dept">
-                                <SelectValue placeholder="Select department" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectGroup>
-                                <SelectItem value="pwd">Public Works Dept.</SelectItem>
-                                <SelectItem value="electric">Electricity Board</SelectItem>
-                                <SelectItem value="water">Water Authority</SelectItem>
-                                <SelectItem value="sanitation">Sanitation Dept.</SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
-                     </div>
-                     <Button className="w-full">Save Changes</Button>
+                     <Button className="w-full" onClick={handleSaveChanges} disabled={isSaving}>
+                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Changes
+                    </Button>
                 </CardContent>
             </Card>
         </div>

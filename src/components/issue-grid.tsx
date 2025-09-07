@@ -1,89 +1,49 @@
+
+import { getFirestore, collection, getDocs, Timestamp } from "firebase/firestore";
+import { app } from "@/lib/firebase";
 import { IssueGridClient } from "./issue-grid-client";
 
-const issues = [
-  {
-    id: 1,
-    reporter: "Ravi Kumar",
-    avatarUrl: "https://picsum.photos/id/1005/48/48",
-    time: "5 min ago",
-    imageUrl: "https://picsum.photos/800/600?random=1",
-    title: "Large Pothole on Main St",
-    district: "Ranchi",
-    category: "Roads",
-    status: "Confirmation",
-    aiHint: "pothole road",
-  },
-  {
-    id: 2,
-    reporter: "Priya Sharma",
-    avatarUrl: "https://picsum.photos/id/1011/48/48",
-    time: "30 min ago",
-    imageUrl: "https://picsum.photos/800/600?random=2",
-    title: "Streetlight not working",
-    district: "Dhanbad",
-    category: "Electricity",
-    status: "Pending",
-    aiHint: "dark street",
-  },
-  {
-    id: 3,
-    reporter: "Anonymous",
-    avatarUrl: null,
-    time: "1 hour ago",
-    imageUrl: "https://picsum.photos/800/600?random=3",
-    title: "Garbage overflow",
-    district: "Patna",
-    category: "Sanitation",
-    status: "Resolution",
-    aiHint: "garbage pile",
-  },
-  {
-    id: 4,
-    reporter: "Anjali Singh",
-    avatarUrl: "https://picsum.photos/id/1027/48/48",
-    time: "3 hours ago",
-    imageUrl: "https://picsum.photos/800/600?random=4",
-    title: "Broken Water Pipe",
-    district: "Lucknow",
-    category: "Water Supply",
-    status: "Acknowledgment",
-    aiHint: "leaking pipe",
-  },
-    {
-    id: 5,
-    reporter: "Amit Patel",
-    avatarUrl: "https://picsum.photos/id/10/48/48",
-    time: "8 hours ago",
-    imageUrl: "https://picsum.photos/800/600?random=5",
-    title: "Fallen Tree Blocking Road",
-    district: "Ranchi",
-    category: "Public Safety",
-    status: "Pending",
-    aiHint: "fallen tree",
-  },
-  {
-    id: 6,
-    reporter: "Sunita Devi",
-    avatarUrl: "https://picsum.photos/id/12/48/48",
-    time: "1 day ago",
-    imageUrl: "https://picsum.photos/800/600?random=6",
-    title: "Open Manhole Cover",
-    district: "Patna",
-    category: "Sanitation",
-    status: "Confirmation",
-    aiHint: "open manhole",
-  },
-];
+interface Issue {
+  id: string;
+  reporterName?: string;
+  avatarUrl?: string | null;
+  createdAt: Timestamp;
+  imageUrls: string[];
+  title: string;
+  district: string;
+  category: string;
+  status: "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
+  description: string;
+  aiHint?: string;
+}
 
-export function IssueGrid() {
-  const issuesWithDescriptions = issues.map((issue) => ({
+async function getIssues() {
+  const db = getFirestore(app);
+  const issuesCol = collection(db, "issues");
+  const issueSnapshot = await getDocs(issuesCol);
+  const issueList = issueSnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  } as Issue));
+  return issueList;
+}
+
+export async function IssueGrid() {
+  const issues = await getIssues();
+
+  const issuesWithClientProps = issues.map((issue) => ({
     ...issue,
-    description: `A new issue has been reported in the '${issue.category}' category. Please look into it.`,
+    id: issue.id,
+    reporter: issue.reporterName || "Anonymous",
+    avatarUrl: issue.avatarUrl || null,
+    imageUrl: issue.imageUrls?.[0] || "https://picsum.photos/800/600",
+    time: issue.createdAt.toDate().toLocaleDateString(),
+    aiHint: issue.aiHint || "issue image",
   }));
 
   return (
     <section className="py-4">
-        <IssueGridClient issues={issuesWithDescriptions} />
+        <IssueGridClient issues={issuesWithClientProps} />
     </section>
   );
 }
