@@ -3,23 +3,27 @@
 
 import * as React from "react";
 import NextImage from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, Shield, Upload, X, ChevronsUpDown, Check } from "lucide-react";
+import { User, Shield, Upload, X, ChevronsUpDown, Check, MapPin } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { IssueSubmittedDialog } from "./issue-submitted-dialog";
+import { states } from "@/lib/india-states-districts";
+import Map from "./map";
+import { useToast } from "@/hooks/use-toast";
 
 const reportIssueSchema = z.object({
   reportType: z.enum(["profiled", "anonymous"]),
@@ -27,7 +31,9 @@ const reportIssueSchema = z.object({
   email: z.string().email().optional(),
   password: z.string().min(8).optional(),
   avatar: z.any().optional(),
+  state: z.string({ required_error: "Please select a state." }),
   district: z.string({ required_error: "Please select a district." }),
+  address: z.string().min(10, "A detailed address is required."),
   title: z.string().min(5, "Title must be at least 5 characters long."),
   description: z.string().min(20, "Description must be at least 20 characters long."),
   images: z.array(z.any()).max(5, "You can upload a maximum of 5 images."),
@@ -35,14 +41,10 @@ const reportIssueSchema = z.object({
 
 type ReportIssueFormValues = z.infer<typeof reportIssueSchema>;
 
-const districts = [
-    { value: "ranchi", label: "Ranchi" },
-    { value: "dhanbad", label: "Dhanbad" },
-    { value: "patna", label: "Patna" },
-    { value: "lucknow", label: "Lucknow" },
-    { value: "mumbai", label: "Mumbai" },
-    { value: "delhi", label: "Delhi" },
-];
+interface Location {
+    lat: number;
+    lng: number;
+}
 
 export function ReportIssueForm() {
     const [reportType, setReportType] = useState<"profiled" | "anonymous">("anonymous");
@@ -50,7 +52,11 @@ export function ReportIssueForm() {
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submissionData, setSubmissionData] = useState<{ txHash: string; issueTitle: string } | null>(null);
-
+    const [location, setLocation] = useState<Location | null>(null);
+    const [hasLocationPermission, setHasLocationPermission] = useState(true); // Assume true initially
+    const [districts, setDistricts] = useState<string[]>([]);
+    
+    const { toast } = useToast();
 
     const form = useForm<ReportIssueFormValues>({
         resolver: zodResolver(reportIssueSchema),
@@ -59,6 +65,52 @@ export function ReportIssueForm() {
             images: [],
         },
     });
+
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    setHasLocationPermission(true);
+                    const newLocation = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                    };
+                    setLocation(newLocation);
+
+                    // Fetch address details
+                    try {
+                        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${newLocation.lat}&lon=${newLocation.lng}`);
+                        const data = await response.json();
+                        if (data && data.address) {
+                            const { road, neighbourhood, suburb, city_district, city, state, postcode, country } = data.address;
+                            const fullAddress = data.display_name || 'Address not found';
+                            form.setValue('address', fullAddress);
+
+                            const foundState = states.find(s => s.state === state);
+                            if (foundState) {
+                                form.setValue('state', foundState.state);
+                                setDistricts(foundState.districts);
+                                const foundDistrict = foundState.districts.find(d => d === (city_district || city || suburb));
+                                if (foundDistrict) {
+                                    form.setValue('district', foundDistrict);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error("Error fetching address:", error);
+                        toast({ variant: 'destructive', title: "Could not fetch address details."});
+                    }
+                },
+                (error) => {
+                    console.error("Geolocation error:", error);
+                    setHasLocationPermission(false);
+                }
+            );
+        } else {
+            setHasLocationPermission(false);
+        }
+    }, [form, toast]);
+
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
@@ -84,6 +136,14 @@ export function ReportIssueForm() {
     }
     
     const onSubmit = (data: ReportIssueFormValues) => {
+        if (!hasLocationPermission) {
+            toast({
+                variant: 'destructive',
+                title: 'Location Access Required',
+                description: 'Please enable location permissions to submit an issue.',
+            });
+            return;
+        }
         setIsSubmitting(true);
         // Simulate API call and blockchain transaction
         setTimeout(() => {
@@ -101,6 +161,16 @@ export function ReportIssueForm() {
         setReportType("anonymous");
     }
 
+    const selectedState = form.watch('state');
+    useEffect(() => {
+        if (selectedState) {
+            const stateData = states.find(s => s.state === selectedState);
+            setDistricts(stateData ? stateData.districts : []);
+        } else {
+            setDistricts([]);
+        }
+    }, [selectedState]);
+
     return (
         <>
             <Card className="w-full max-w-4xl mx-auto bg-card/50 backdrop-blur-lg border-white/20 shadow-xl">
@@ -109,6 +179,24 @@ export function ReportIssueForm() {
                     <CardDescription>Help improve your community by reporting issues.</CardDescription>
                 </CardHeader>
                 <CardContent>
+                    {!hasLocationPermission && (
+                         <Alert variant="destructive" className="mb-6">
+                            <MapPin className="h-4 w-4" />
+                            <AlertTitle>Location Access Denied</AlertTitle>
+                            <AlertDescription>
+                                Location access is required to report an issue. Please enable it in your browser settings and refresh the page.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                    <div className="relative w-full h-64 mb-6 rounded-lg overflow-hidden border">
+                         {location ? (
+                            <Map location={location} path={[]} />
+                        ) : (
+                            <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground">
+                                {hasLocationPermission ? 'Getting your location...' : 'Location access denied.'}
+                            </div>
+                        )}
+                    </div>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                         <div className="space-y-4">
                             <Label>How would you like to report?</Label>
@@ -175,45 +263,81 @@ export function ReportIssueForm() {
                         </AnimatePresence>
 
                         <div className="space-y-6">
-                            <div>
-                                <Label>District</Label>
-                                <Controller
-                                    name="district"
-                                    control={form.control}
-                                    render={({ field }) => (
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
-                                                    {field.value ? districts.find(d => d.value === field.value)?.label : "Select district..."}
-                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-full p-0">
-                                                <Command>
-                                                    <CommandInput placeholder="Search district..." />
-                                                    <CommandList>
-                                                        <CommandEmpty>No district found.</CommandEmpty>
-                                                        <CommandGroup>
-                                                            {districts.map((district) => (
-                                                                <CommandItem
-                                                                    key={district.value}
-                                                                    value={district.value}
-                                                                    onSelect={(currentValue) => {
-                                                                        field.onChange(currentValue === field.value ? "" : currentValue);
-                                                                    }}
-                                                                >
-                                                                    <Check className={cn("mr-2 h-4 w-4", field.value === district.value ? "opacity-100" : "opacity-0")} />
-                                                                    {district.label}
-                                                                </CommandItem>
-                                                            ))}
-                                                        </CommandGroup>
-                                                    </CommandList>
-                                                </Command>
-                                            </PopoverContent>
-                                        </Popover>
-                                    )}
-                                />
-                                {form.formState.errors.district && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.district.message}</p>}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                 <div>
+                                    <Label>State</Label>
+                                    <Controller
+                                        name="state"
+                                        control={form.control}
+                                        render={({ field }) => (
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                                                        {field.value ? states.find(s => s.state === field.value)?.state : "Select state..."}
+                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                                    <Command>
+                                                        <CommandInput placeholder="Search state..." />
+                                                        <CommandList>
+                                                            <CommandEmpty>No state found.</CommandEmpty>
+                                                            <CommandGroup>
+                                                                {states.map((state) => (
+                                                                    <CommandItem key={state.state} value={state.state} onSelect={() => { form.setValue('state', state.state); form.setValue('district', ''); }}>
+                                                                        <Check className={cn("mr-2 h-4 w-4", field.value === state.state ? "opacity-100" : "opacity-0")} />
+                                                                        {state.state}
+                                                                    </CommandItem>
+                                                                ))}
+                                                            </CommandGroup>
+                                                        </CommandList>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
+                                        )}
+                                    />
+                                    {form.formState.errors.state && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.state.message}</p>}
+                                </div>
+                                 <div>
+                                    <Label>District</Label>
+                                    <Controller
+                                        name="district"
+                                        control={form.control}
+                                        render={({ field }) => (
+                                            <Popover>
+                                                <PopoverTrigger asChild disabled={!selectedState}>
+                                                    <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+                                                        {field.value ? districts.find(d => d === field.value) : "Select district..."}
+                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                                    <Command>
+                                                        <CommandInput placeholder="Search district..." />
+                                                        <CommandList>
+                                                            <CommandEmpty>No district found.</CommandEmpty>
+                                                            <CommandGroup>
+                                                                {districts.map((district) => (
+                                                                    <CommandItem key={district} value={district} onSelect={() => { form.setValue('district', district)}}>
+                                                                        <Check className={cn("mr-2 h-4 w-4", field.value === district ? "opacity-100" : "opacity-0")} />
+                                                                        {district}
+                                                                    </CommandItem>
+                                                                ))}
+                                                            </CommandGroup>
+                                                        </CommandList>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
+                                        )}
+                                    />
+                                    {form.formState.errors.district && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.district.message}</p>}
+                                </div>
+                            </div>
+
+                             <div>
+                                <Label htmlFor="address">Full Address / Landmark</Label>
+                                <Textarea id="address" {...form.register("address")} placeholder="e.g., Near City Hall, Main Street" />
+                                {form.formState.errors.address && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.address.message}</p>}
                             </div>
 
                             <div>
@@ -256,7 +380,7 @@ export function ReportIssueForm() {
                             </div>
                         </div>
                         <motion.div whileTap={{ scale: 0.99 }}>
-                            <Button type="submit" size="lg" className="w-full font-bold text-lg" disabled={isSubmitting}>
+                            <Button type="submit" size="lg" className="w-full font-bold text-lg" disabled={isSubmitting || !hasLocationPermission}>
                                 {isSubmitting ? "Submitting..." : "Submit Report"}
                             </Button>
                         </motion.div>
