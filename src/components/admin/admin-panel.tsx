@@ -175,7 +175,7 @@ export function AdminPanel() {
     // Superadmin check
     if (data.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL && data.password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
         router.push('/admin/dashboard');
-        return;
+        return; // <-- This was the missing piece
     }
 
     try {
