@@ -22,6 +22,7 @@ import {
   signInWithEmailAndPassword,
 } from "firebase/auth";
 import { app } from "@/lib/firebase";
+import { states } from "@/lib/india-states-districts";
 
 import {
   Select,
@@ -46,6 +47,7 @@ const loginSchema = z.object({
 });
 
 const districtSelectionSchema = z.object({
+  state: z.string().min(1, "Please select a state."),
   district: z.string().min(1, "Please select a district."),
 });
 
@@ -76,51 +78,44 @@ const chartConfig = {
 
 export function AdminPanel() {
   const [step, setStep] = useState(1); // 1: Login/Register Choice, 2: District Select, 3: Register Form, 4: Login Form, 5: Dashboard
+  const [selectedState, setSelectedState] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("");
-  const [districts, setDistricts] = useState<{ value: string; label: string }[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [districts, setDistricts] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const db = getFirestore(app);
   const auth = getAuth(app);
 
-  useEffect(() => {
-    const fetchDistricts = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "districts"));
-        const districtsList = querySnapshot.docs.map(doc => ({
-          value: doc.id,
-          label: doc.data().name,
-        }));
-        setDistricts(districtsList);
-      } catch (err) {
-        setError("Failed to load districts. Please try again later.");
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Could not connect to the database to fetch districts.",
-        })
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchDistricts();
-  }, [db, toast]);
-
   const loginForm = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
   const districtForm = useForm<DistrictSelectionValues>({ resolver: zodResolver(districtSelectionSchema) });
   const registrationForm = useForm<RegistrationValues>({ resolver: zodResolver(registrationSchema) });
 
+  const handleStateChange = (stateName: string) => {
+    setSelectedState(stateName);
+    districtForm.setValue('state', stateName);
+    districtForm.setValue('district', ''); // Reset district when state changes
+    const selectedStateData = states.find(s => s.state === stateName);
+    setDistricts(selectedStateData ? selectedStateData.districts : []);
+    setError(null);
+  }
+
+  const handleDistrictChange = (districtName: string) => {
+    districtForm.setValue('district', districtName);
+    setError(null);
+  }
+
   const onDistrictSubmit = async (data: DistrictSelectionValues) => {
     setIsLoading(true);
     setError(null);
+    const districtId = `${data.state}-${data.district}`.toLowerCase().replace(/\s+/g, '-');
     try {
-      const districtAdminRef = doc(db, "districtAdmins", data.district);
+      const districtAdminRef = doc(db, "districtAdmins", districtId);
       const districtAdminDoc = await getDoc(districtAdminRef);
       
       if (districtAdminDoc.exists()) {
-        setError(`An admin for ${districts.find(d=>d.value === data.district)?.label} already exists.`);
+        setError(`An admin for ${data.district}, ${data.state} already exists.`);
       } else {
         setSelectedDistrict(data.district);
         setStep(3); // Go to registration form
@@ -135,9 +130,11 @@ export function AdminPanel() {
   const onRegistrationSubmit = async (data: RegistrationValues) => {
     setIsLoading(true);
     setError(null);
+    const districtId = `${selectedState}-${selectedDistrict}`.toLowerCase().replace(/\s+/g, '-');
+
     try {
       // Check if district is already taken one more time before creating user
-      const districtAdminRef = doc(db, "districtAdmins", selectedDistrict);
+      const districtAdminRef = doc(db, "districtAdmins", districtId);
       const districtAdminDoc = await getDoc(districtAdminRef);
       if (districtAdminDoc.exists()) {
         setError(`An admin for this district was just registered. Please select another.`);
@@ -155,16 +152,18 @@ export function AdminPanel() {
       batch.set(newAdminRef, {
         name: data.name,
         email: data.email,
+        state: selectedState,
         district: selectedDistrict,
         role: "admin",
         status: "pending",
         createdAt: new Date(),
       });
 
-      const newDistrictAdminRef = doc(db, "districtAdmins", selectedDistrict);
+      const newDistrictAdminRef = doc(db, "districtAdmins", districtId);
       batch.set(newDistrictAdminRef, {
           adminId: user.uid,
-          districtName: districts.find(d => d.value === selectedDistrict)?.label,
+          state: selectedState,
+          districtName: selectedDistrict,
       });
 
       await batch.commit();
@@ -200,6 +199,7 @@ export function AdminPanel() {
             const adminData = adminDoc.data();
             if (adminData.role === 'superadmin' || adminData.status === 'approved') {
                 setSelectedDistrict(adminData.district);
+                setSelectedState(adminData.state);
                 setStep(5); // Go to dashboard
             } else if (adminData.status === 'pending') {
                 setError("Your application is still pending approval.");
@@ -246,15 +246,32 @@ export function AdminPanel() {
             </CardHeader>
             <CardContent>
               <form onSubmit={districtForm.handleSubmit(onDistrictSubmit)} className="space-y-6">
-                <Select onValueChange={(value) => districtForm.setValue('district', value)} defaultValue={districtForm.getValues('district')}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a district" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {districts.map((d) => ( <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem> ))}
-                  </SelectContent>
-                </Select>
-                {districtForm.formState.errors.district && <p className="text-sm font-medium text-destructive">{districtForm.formState.errors.district.message}</p>}
+                <div className="space-y-2">
+                    <Label>State</Label>
+                    <Select onValueChange={handleStateChange} value={selectedState}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a state" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {states.map((s) => ( <SelectItem key={s.state} value={s.state}>{s.state}</SelectItem> ))}
+                        </SelectContent>
+                    </Select>
+                    {districtForm.formState.errors.state && <p className="text-sm font-medium text-destructive">{districtForm.formState.errors.state.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                    <Label>District</Label>
+                    <Select onValueChange={handleDistrictChange} value={districtForm.getValues('district')} disabled={!selectedState}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select a district" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {districts.map((d) => ( <SelectItem key={d} value={d}>{d}</SelectItem> ))}
+                        </SelectContent>
+                    </Select>
+                    {districtForm.formState.errors.district && <p className="text-sm font-medium text-destructive">{districtForm.formState.errors.district.message}</p>}
+                </div>
+
                 {error && <p className="text-sm font-medium text-destructive flex items-center gap-2 mt-2"><AlertCircle className="h-4 w-4"/> {error}</p>}
                 <Button type="submit" className="w-full" disabled={isLoading}>Continue</Button>
                 <Button type="button" variant="ghost" className="w-full" onClick={() => { setStep(1); setError(null); }}>Back</Button>
@@ -267,7 +284,7 @@ export function AdminPanel() {
         return (
           <motion.div key="step3" initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }}>
             <CardHeader>
-              <CardTitle>Admin Registration for {districts.find(d=>d.value === selectedDistrict)?.label}</CardTitle>
+              <CardTitle>Admin Registration for {selectedDistrict}, {selectedState}</CardTitle>
               <CardDescription>Create your secure admin account.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -331,7 +348,7 @@ export function AdminPanel() {
             className="p-4"
           >
             <div className="flex justify-between items-center mb-6">
-                 <h1 className="font-headline text-3xl font-bold">Dashboard for {districts.find(d=>d.value === selectedDistrict)?.label || 'All Districts'}</h1>
+                 <h1 className="font-headline text-3xl font-bold">Dashboard for {selectedDistrict}</h1>
                  <Button variant="outline" onClick={() => { setStep(1); setSelectedDistrict(""); setError(null); auth.signOut(); }}>Log Out</Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -396,3 +413,5 @@ export function AdminPanel() {
     </Card>
   );
 }
+
+    
