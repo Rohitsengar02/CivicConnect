@@ -13,13 +13,13 @@ import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, runTransaction, getDoc, collection, DocumentData } from "firebase/firestore";
+import { doc, runTransaction, getDoc, DocumentData } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 type IssueStatus = "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
 
 type Issue = {
-  id: string; 
+  id: string;
   reporter: string;
   avatarUrl: string | null;
   time: string;
@@ -30,7 +30,7 @@ type Issue = {
   status: IssueStatus;
   description: string;
   aiHint: string;
-  createdAt: string; 
+  createdAt: string;
   address: string;
   votes?: number;
 };
@@ -69,6 +69,7 @@ export function IssueCard({ issue }: IssueCardProps) {
   const [displayDate, setDisplayDate] = useState("");
 
   useEffect(() => {
+    // This effect runs only on the client, after hydration
     setDisplayDate(new Date(issue.createdAt).toLocaleDateString());
 
     const checkUserVote = async () => {
@@ -299,3 +300,5 @@ export function IssueCard({ issue }: IssueCardProps) {
     </Link>
   );
 }
+
+    

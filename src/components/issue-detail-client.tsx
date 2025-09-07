@@ -59,8 +59,12 @@ export function IssueDetailClient({ issue }: { issue: Issue }) {
     const [voteCount, setVoteCount] = useState(issue.votes || 0);
     const [voted, setVoted] = useState<"up" | "down" | null>(null);
     const [isVoting, setIsVoting] = useState(false);
+    const [displayDate, setDisplayDate] = useState("");
 
     useEffect(() => {
+        // This effect runs only on the client, after hydration
+        setDisplayDate(new Date(issue.createdAt).toLocaleDateString());
+
         const checkUserVote = async () => {
             if (user) {
                 const collectionsToTry = ['profiledIssues', 'anonymousIssues'];
@@ -75,7 +79,7 @@ export function IssueDetailClient({ issue }: { issue: Issue }) {
             }
         };
         checkUserVote();
-      }, [issue.id, user]);
+      }, [issue.id, user, issue.createdAt]);
 
     const handleVote = async (direction: "up" | "down") => {
         if (!user) {
@@ -204,7 +208,7 @@ export function IssueDetailClient({ issue }: { issue: Issue }) {
                         </Avatar>
                         <div>
                             <p className="font-semibold">{issue.reporterName || 'Anonymous'}</p>
-                            <p className="text-xs text-muted-foreground">{new Date(issue.createdAt).toLocaleDateString()}</p>
+                            <p className="text-xs text-muted-foreground">{displayDate}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 text-muted-foreground">
@@ -267,3 +271,5 @@ export function IssueDetailClient({ issue }: { issue: Issue }) {
     </div>
   );
 }
+
+    
