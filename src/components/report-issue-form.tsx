@@ -33,7 +33,8 @@ const reportIssueSchema = z.object({
   reporterEmail: z.string().email().optional(),
   state: z.string({ required_error: "Please select a state." }),
   district: z.string({ required_error: "Please select a district." }),
-  address: z.string().min(10, "A detailed address is required."),
+  streetAddress: z.string().min(10, "A detailed street address is required."),
+  cityInfo: z.string(),
   title: z.string().min(5, "Title must be at least 5 characters long."),
   description: z.string().min(20, "Description must be at least 20 characters long."),
   images: z.array(z.any()).max(5, "You can upload a maximum of 5 images."),
@@ -65,6 +66,8 @@ export function ReportIssueForm() {
         defaultValues: {
             reportType: "anonymous",
             images: [],
+            streetAddress: "",
+            cityInfo: "",
         },
     });
 
@@ -83,9 +86,14 @@ export function ReportIssueForm() {
                         const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${newLocation.lat}&lon=${newLocation.lng}`);
                         const data = await response.json();
                         if (data && data.address) {
-                            const { road, neighbourhood, suburb, city_district, city, state, postcode, country } = data.address;
-                            const fullAddress = data.display_name || 'Address not found';
-                            form.setValue('address', fullAddress, { shouldValidate: true });
+                            const { road, neighbourhood, suburb, city_district, city, state, postcode } = data.address;
+                            
+                            const street = road || neighbourhood || suburb || "N/A";
+                            const cityInfo = `${city_district || city || ''}, ${state || ''}, ${postcode || ''}`;
+
+                            form.setValue('streetAddress', street, { shouldValidate: true });
+                            form.setValue('cityInfo', cityInfo.trim(), { shouldValidate: true });
+                            
 
                             const foundState = states.find(s => s.state === state);
                             if (foundState) {
@@ -165,12 +173,14 @@ export function ReportIssueForm() {
             const imageUrls = await Promise.all(
                 imageFiles.map(async (file) => uploadToCloudinary(file))
             );
+            
+            const fullAddress = `${data.streetAddress}, ${data.cityInfo}`;
 
             let collectionName = 'anonymousIssues';
             const issueData: any = {
                 title: data.title,
                 description: data.description,
-                address: data.address,
+                address: fullAddress,
                 state: data.state,
                 district: data.district,
                 imageUrls,
@@ -209,16 +219,6 @@ export function ReportIssueForm() {
         setSubmissionData(null);
         router.push('/');
     }
-
-    const selectedState = form.watch('state');
-    useEffect(() => {
-        if (selectedState) {
-            const stateData = states.find(s => s.state === selectedState);
-            setDistricts(stateData ? stateData.districts : []);
-        } else {
-            setDistricts([]);
-        }
-    }, [selectedState]);
 
     return (
         <>
@@ -290,23 +290,15 @@ export function ReportIssueForm() {
                         </AnimatePresence>
 
                         <div className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                 <div>
-                                    <Label>State</Label>
-                                     <Input readOnly {...form.register("state")} placeholder="State will be auto-filled" />
-                                    {form.formState.errors.state && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.state.message}</p>}
-                                </div>
-                                 <div>
-                                    <Label>District</Label>
-                                    <Input readOnly {...form.register("district")} placeholder="District will be auto-filled" />
-                                    {form.formState.errors.district && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.district.message}</p>}
-                                </div>
+                             <div>
+                                <Label htmlFor="streetAddress">Street Address / Landmark</Label>
+                                <Textarea id="streetAddress" {...form.register("streetAddress")} placeholder="e.g., Near City Hall, Main Street" />
+                                {form.formState.errors.streetAddress && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.streetAddress.message}</p>}
                             </div>
 
                              <div>
-                                <Label htmlFor="address">Full Address / Landmark</Label>
-                                <Textarea id="address" {...form.register("address")} placeholder="e.g., Near City Hall, Main Street" readOnly />
-                                {form.formState.errors.address && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.address.message}</p>}
+                                <Label htmlFor="cityInfo">City, State, Pincode</Label>
+                                <Input id="cityInfo" {...form.register("cityInfo")} readOnly />
                             </div>
 
                             <div>
