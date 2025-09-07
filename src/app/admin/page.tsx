@@ -1,3 +1,6 @@
+
+"use client";
+
 import {
   Card,
   CardContent,
@@ -7,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { BarChart, ListChecks, Users } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Bar, BarChart as RechartsBarChart, ResponsiveContainer } from "recharts";
+import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 
 const chartData = [
     { month: "January", issues: 186 },
@@ -78,7 +81,7 @@ export default function AdminDashboardPage() {
             <CardContent>
                  <ChartContainer config={chartConfig} className="h-[250px] w-full">
                     <RechartsBarChart accessibilityLayer data={chartData}>
-                        <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
+                        <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} tickFormatter={(value) => value.slice(0, 3)} />
                         <YAxis tickLine={false} axisLine={false} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Bar dataKey="issues" fill="var(--color-issues)" radius={4} />
