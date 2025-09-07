@@ -9,6 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Shield, Upload, X, ChevronsUpDown, Check, MapPin, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { db, storage } from "@/lib/firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
@@ -59,6 +60,7 @@ export function ReportIssueForm() {
     const [location, setLocation] = useState<Location | null>(null);
     const [hasLocationPermission, setHasLocationPermission] = useState(true);
     const [districts, setDistricts] = useState<string[]>([]);
+    const router = useRouter();
     
     const { toast } = useToast();
 
@@ -87,15 +89,15 @@ export function ReportIssueForm() {
                         if (data && data.address) {
                             const { road, neighbourhood, suburb, city_district, city, state, postcode, country } = data.address;
                             const fullAddress = data.display_name || 'Address not found';
-                            form.setValue('address', fullAddress);
+                            form.setValue('address', fullAddress, { shouldValidate: true });
 
                             const foundState = states.find(s => s.state === state);
                             if (foundState) {
-                                form.setValue('state', foundState.state);
+                                form.setValue('state', foundState.state, { shouldValidate: true });
                                 setDistricts(foundState.districts);
                                 const foundDistrict = foundState.districts.find(d => d === (city_district || city || suburb));
                                 if (foundDistrict) {
-                                    form.setValue('district', foundDistrict);
+                                    form.setValue('district', foundDistrict, { shouldValidate: true });
                                 }
                             }
                         }
@@ -188,12 +190,13 @@ export function ReportIssueForm() {
         }
     };
 
-    const resetForm = () => {
+    const handleDialogClose = () => {
         form.reset({ reportType: 'anonymous', images: [] });
         setImagePreviews([]);
         setImageFiles([]);
         setAvatarPreview(null);
         setSubmissionData(null);
+        router.push('/');
     }
 
     const selectedState = form.watch('state');
@@ -279,77 +282,19 @@ export function ReportIssueForm() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                  <div>
                                     <Label>State</Label>
-                                    <Controller
-                                        name="state"
-                                        control={form.control}
-                                        render={({ field }) => (
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
-                                                        {field.value ? states.find(s => s.state === field.value)?.state : "Select state..."}
-                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                                    <Command>
-                                                        <CommandInput placeholder="Search state..." />
-                                                        <CommandList>
-                                                            <CommandEmpty>No state found.</CommandEmpty>
-                                                            <CommandGroup>
-                                                                {states.map((state) => (
-                                                                    <CommandItem key={state.state} value={state.state} onSelect={() => { form.setValue('state', state.state); form.setValue('district', ''); }}>
-                                                                        <Check className={cn("mr-2 h-4 w-4", field.value === state.state ? "opacity-100" : "opacity-0")} />
-                                                                        {state.state}
-                                                                    </CommandItem>
-                                                                ))}
-                                                            </CommandGroup>
-                                                        </CommandList>
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
-                                        )}
-                                    />
+                                     <Input readOnly {...form.register("state")} placeholder="State will be auto-filled" />
                                     {form.formState.errors.state && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.state.message}</p>}
                                 </div>
                                  <div>
                                     <Label>District</Label>
-                                    <Controller
-                                        name="district"
-                                        control={form.control}
-                                        render={({ field }) => (
-                                            <Popover>
-                                                <PopoverTrigger asChild disabled={!selectedState}>
-                                                    <Button variant="outline" role="combobox" className="w-full justify-between font-normal">
-                                                        {field.value ? districts.find(d => d === field.value) : "Select district..."}
-                                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                                    <Command>
-                                                        <CommandInput placeholder="Search district..." />
-                                                        <CommandList>
-                                                            <CommandEmpty>No district found.</CommandEmpty>
-                                                            <CommandGroup>
-                                                                {districts.map((district) => (
-                                                                    <CommandItem key={district} value={district} onSelect={() => { form.setValue('district', district)}}>
-                                                                        <Check className={cn("mr-2 h-4 w-4", field.value === district ? "opacity-100" : "opacity-0")} />
-                                                                        {district}
-                                                                    </CommandItem>
-                                                                ))}
-                                                            </CommandGroup>
-                                                        </CommandList>
-                                                    </Command>
-                                                </PopoverContent>
-                                            </Popover>
-                                        )}
-                                    />
+                                    <Input readOnly {...form.register("district")} placeholder="District will be auto-filled" />
                                     {form.formState.errors.district && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.district.message}</p>}
                                 </div>
                             </div>
 
                              <div>
                                 <Label htmlFor="address">Full Address / Landmark</Label>
-                                <Textarea id="address" {...form.register("address")} placeholder="e.g., Near City Hall, Main Street" />
+                                <Textarea id="address" {...form.register("address")} placeholder="e.g., Near City Hall, Main Street" readOnly />
                                 {form.formState.errors.address && <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.address.message}</p>}
                             </div>
 
@@ -404,10 +349,12 @@ export function ReportIssueForm() {
 
             <IssueSubmittedDialog
                 isOpen={!!submissionData}
-                onClose={resetForm}
+                onClose={handleDialogClose}
                 issueId={submissionData?.issueId}
                 issueTitle={submissionData?.issueTitle}
             />
         </>
     );
 }
+
+    
