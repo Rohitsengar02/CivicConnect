@@ -16,7 +16,7 @@ import { LayoutGrid, LayoutList } from "lucide-react";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { db } from "@/lib/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc } from "firebase/firestore";
 
 interface ExploreFiltersProps {
     onFilterChange: (filters: Filters) => void;
@@ -25,12 +25,34 @@ interface ExploreFiltersProps {
 export function ExploreFilters({ onFilterChange }: ExploreFiltersProps) {
   const { user } = useAuth();
   const [selectedState, setSelectedState] = useState("");
+  const [selectedDistrict, setSelectedDistrict] = useState("");
   const [districts, setDistricts] = useState<string[]>([]);
   const [currentFilters, setCurrentFilters] = useState<Filters>({ sortBy: 'newest' });
 
    useEffect(() => {
     onFilterChange(currentFilters);
   }, [currentFilters, onFilterChange]);
+
+  useEffect(() => {
+    const fetchUserLocation = async () => {
+        if (user) {
+            const userRef = doc(db, "users", user.uid);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists() && userSnap.data().state && userSnap.data().district) {
+                const { state, district } = userSnap.data();
+                
+                const stateData = states.find(s => s.state === state);
+                if (stateData) {
+                    setSelectedState(state);
+                    setDistricts(stateData.districts);
+                    setSelectedDistrict(district);
+                    setCurrentFilters(prev => ({...prev, state, district}));
+                }
+            }
+        }
+    };
+    fetchUserLocation();
+  }, [user]);
 
 
   const updateUserLocation = async (state: string, district: string) => {
@@ -49,11 +71,14 @@ export function ExploreFilters({ onFilterChange }: ExploreFiltersProps) {
     setSelectedState(stateName);
     const selectedStateData = states.find(s => s.state === stateName);
     setDistricts(selectedStateData ? selectedStateData.districts : []);
+    setSelectedDistrict(""); // Reset district
+    
     handleFilterChange('state', stateName);
-    handleFilterChange('district', undefined); // Reset district
+    handleFilterChange('district', undefined); 
   };
   
   const handleDistrictChange = (districtName: string) => {
+    setSelectedDistrict(districtName);
     handleFilterChange('district', districtName);
     if (selectedState && districtName) {
       updateUserLocation(selectedState, districtName);
@@ -63,7 +88,6 @@ export function ExploreFilters({ onFilterChange }: ExploreFiltersProps) {
   const handleFilterChange = (filterName: keyof Filters, value: string | undefined) => {
     setCurrentFilters(prev => {
         const newFilters = {...prev, [filterName]: value};
-        // If a filter is cleared (undefined), remove it from the object
         if (value === undefined || value === 'all') {
             delete (newFilters as any)[filterName];
         }
@@ -76,14 +100,16 @@ export function ExploreFilters({ onFilterChange }: ExploreFiltersProps) {
       label: "State",
       value: "state",
       options: states.map(s => ({ value: s.state, label: s.state })),
-      onChange: handleStateChange
+      onChange: handleStateChange,
+      selectedValue: selectedState,
     },
     {
       label: "District",
       value: "district",
       options: districts.map(d => ({ value: d, label: d })),
       disabled: !selectedState,
-      onChange: handleDistrictChange
+      onChange: handleDistrictChange,
+      selectedValue: selectedDistrict,
     },
      {
       label: "Status",
@@ -94,7 +120,8 @@ export function ExploreFilters({ onFilterChange }: ExploreFiltersProps) {
         { value: "Acknowledgment", label: "Acknowledgment" },
         { value: "Resolution", label: "Resolution" },
       ],
-      onChange: (value: string) => handleFilterChange('status', value)
+      onChange: (value: string) => handleFilterChange('status', value),
+      selectedValue: currentFilters.status,
     },
     {
       label: "Sort by",
@@ -104,7 +131,8 @@ export function ExploreFilters({ onFilterChange }: ExploreFiltersProps) {
         { value: "popular", label: "Most Popular" },
         { value: "trending", label: "Trending" },
       ],
-      onChange: (value: string) => handleFilterChange('sortBy', value)
+      onChange: (value: string) => handleFilterChange('sortBy', value),
+      selectedValue: currentFilters.sortBy,
     },
   ];
 
@@ -117,7 +145,7 @@ export function ExploreFilters({ onFilterChange }: ExploreFiltersProps) {
                 key={filter.value}
                 onValueChange={filter.onChange}
                 disabled={!!filter.disabled}
-                value={currentFilters[filter.value as keyof Filters] || ''}
+                value={filter.selectedValue || ''}
             >
               <SelectTrigger className="w-40 min-w-40 rounded-full border-0 bg-secondary/70 backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
                 <SelectValue placeholder={filter.label} />

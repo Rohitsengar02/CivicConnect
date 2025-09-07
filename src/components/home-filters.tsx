@@ -14,7 +14,7 @@ import {
 import type { Filters } from "@/app/explore/page";
 import { useAuth } from "@/hooks/use-auth";
 import { db } from "@/lib/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, getDoc } from "firebase/firestore";
 
 
 interface HomeFiltersProps {
@@ -24,6 +24,7 @@ interface HomeFiltersProps {
 export function HomeFilters({ onFilterChange }: HomeFiltersProps) {
   const { user } = useAuth();
   const [selectedState, setSelectedState] = useState("");
+  const [selectedDistrict, setSelectedDistrict] = useState("");
   const [districts, setDistricts] = useState<string[]>([]);
   const [currentFilters, setCurrentFilters] = useState<Filters>({ sortBy: 'newest' });
 
@@ -31,6 +32,27 @@ export function HomeFilters({ onFilterChange }: HomeFiltersProps) {
     onFilterChange(currentFilters);
   }, [currentFilters, onFilterChange]);
   
+  useEffect(() => {
+    const fetchUserLocation = async () => {
+        if (user) {
+            const userRef = doc(db, "users", user.uid);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists() && userSnap.data().state && userSnap.data().district) {
+                const { state, district } = userSnap.data();
+                
+                const stateData = states.find(s => s.state === state);
+                if (stateData) {
+                    setSelectedState(state);
+                    setDistricts(stateData.districts);
+                    setSelectedDistrict(district);
+                    setCurrentFilters(prev => ({...prev, state, district}));
+                }
+            }
+        }
+    };
+    fetchUserLocation();
+  }, [user]);
+
   const updateUserLocation = async (state: string, district: string) => {
     if (user) {
       const userRef = doc(db, "users", user.uid);
@@ -45,12 +67,16 @@ export function HomeFilters({ onFilterChange }: HomeFiltersProps) {
   const handleStateChange = (stateName: string) => {
     setSelectedState(stateName);
     const selectedStateData = states.find(s => s.state === stateName);
-    setDistricts(selectedStateData ? selectedStateData.districts : []);
+    const newDistricts = selectedStateData ? selectedStateData.districts : [];
+    setDistricts(newDistricts);
+    setSelectedDistrict(""); // Reset district
+    
     handleFilterChange('state', stateName);
-    handleFilterChange('district', undefined); // Reset district when state changes
+    handleFilterChange('district', undefined);
   };
   
   const handleDistrictChange = (districtName: string) => {
+    setSelectedDistrict(districtName);
     handleFilterChange('district', districtName);
     if (selectedState && districtName) {
       updateUserLocation(selectedState, districtName);
@@ -60,7 +86,6 @@ export function HomeFilters({ onFilterChange }: HomeFiltersProps) {
   const handleFilterChange = (filterName: keyof Filters, value: string | undefined) => {
     setCurrentFilters(prev => {
         const newFilters = {...prev, [filterName]: value};
-        // If a filter is cleared (undefined), remove it from the object
         if (value === undefined || value === 'all') {
             delete (newFilters as any)[filterName];
         }
@@ -73,14 +98,16 @@ export function HomeFilters({ onFilterChange }: HomeFiltersProps) {
       label: "State",
       value: "state",
       options: states.map(s => ({ value: s.state, label: s.state })),
-      onChange: handleStateChange
+      onChange: handleStateChange,
+      selectedValue: selectedState
     },
     {
       label: "District",
       value: "district",
       options: districts.map(d => ({ value: d, label: d })),
       disabled: !selectedState,
-      onChange: handleDistrictChange
+      onChange: handleDistrictChange,
+      selectedValue: selectedDistrict
     },
     {
       label: "Sort by",
@@ -90,7 +117,8 @@ export function HomeFilters({ onFilterChange }: HomeFiltersProps) {
         { value: "popular", label: "Most Popular" },
         { value: "trending", label: "Trending" },
       ],
-      onChange: (value: string) => handleFilterChange('sortBy', value)
+      onChange: (value: string) => handleFilterChange('sortBy', value),
+      selectedValue: currentFilters.sortBy
     },
   ];
 
@@ -103,7 +131,7 @@ export function HomeFilters({ onFilterChange }: HomeFiltersProps) {
                 key={filter.value}
                 onValueChange={filter.onChange}
                 disabled={!!filter.disabled}
-                value={currentFilters[filter.value as keyof Filters] || ''}
+                value={filter.selectedValue || ''}
             >
               <SelectTrigger className="w-40 min-w-40 rounded-full border-0 bg-secondary/70 backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
                 <SelectValue placeholder={filter.label} />
