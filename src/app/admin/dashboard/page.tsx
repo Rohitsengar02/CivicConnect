@@ -1,9 +1,9 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, ListChecks, Users } from "lucide-react";
+import { BarChart, ListChecks, UserCheck, Users } from "lucide-react";
 import {
   ChartContainer,
   ChartTooltip,
@@ -17,6 +17,7 @@ import {
   YAxis,
 } from "recharts";
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 
 const chartData = [
@@ -36,14 +37,36 @@ const chartConfig = {
 
 
 export default function AdminDashboardPage() {
-  const [district] = useState("Ranchi"); // This would come from user session
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [district] = useState("Ranchi"); // This would come from user session for district admin
+
+  useEffect(() => {
+    const role = sessionStorage.getItem('userRole');
+    setUserRole(role);
+  }, []);
   
   return (
      <div className="p-4">
             <div className="flex justify-between items-center mb-6">
-                 <h1 className="font-headline text-3xl font-bold">Dashboard for {district}</h1>
+                 <h1 className="font-headline text-3xl font-bold">
+                    {userRole === 'superadmin' ? 'Super Admin Dashboard' : `Dashboard for ${district}`}
+                 </h1>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                 {userRole === 'superadmin' && (
+                  <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                          <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
+                          <UserCheck className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                          <div className="text-2xl font-bold">5</div>
+                          <Link href="/admin/dashboard/approve-admins">
+                            <Button variant="link" className="p-0 h-auto text-xs">View applications</Button>
+                          </Link>
+                      </CardContent>
+                  </Card>
+                )}
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Issues</CardTitle>

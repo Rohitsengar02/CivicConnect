@@ -98,7 +98,7 @@ export default function ManageIssuesPage() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {issues.map((issue) => (
           <Card key={issue.id} className="flex flex-col overflow-hidden">
-            <Link href={`/admin/manage-issues/${issue.id}`} className="block hover:opacity-90 transition-opacity">
+            <Link href={`/admin/dashboard/manage-issues/${issue.id}`} className="block hover:opacity-90 transition-opacity">
               <div className="relative aspect-video">
                 <Image 
                   src={issue.imageUrl}
@@ -110,7 +110,7 @@ export default function ManageIssuesPage() {
             </Link>
             <CardHeader>
               <div className="flex justify-between items-start">
-                 <Link href={`/admin/manage-issues/${issue.id}`} className="block">
+                 <Link href={`/admin/dashboard/manage-issues/${issue.id}`} className="block">
                     <CardTitle className="text-lg hover:underline">{issue.title}</CardTitle>
                  </Link>
                 <DropdownMenu>
@@ -122,7 +122,7 @@ export default function ManageIssuesPage() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem>
-                        <Link href={`/admin/manage-issues/${issue.id}`} className="w-full h-full">
+                        <Link href={`/admin/dashboard/manage-issues/${issue.id}`} className="w-full h-full">
                             View Details
                         </Link>
                     </DropdownMenuItem>

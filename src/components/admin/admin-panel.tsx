@@ -11,6 +11,10 @@ import {
   doc,
   getDoc,
   writeBatch,
+  collection,
+  query,
+  where,
+  getDocs
 } from "firebase/firestore";
 import {
   getAuth,
@@ -172,10 +176,10 @@ export function AdminPanel() {
     setIsLoading(true);
     setError(null);
 
-    // Superadmin check
     if (data.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL && data.password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD) {
+        sessionStorage.setItem('userRole', 'superadmin');
         router.push('/admin/dashboard');
-        return; // <-- This was the missing piece
+        return;
     }
 
     try {
@@ -187,7 +191,8 @@ export function AdminPanel() {
 
         if (adminDoc.exists()) {
             const adminData = adminDoc.data();
-            if (adminData.role === 'superadmin' || adminData.status === 'approved') {
+            if (adminData.status === 'approved') {
+                sessionStorage.setItem('userRole', 'admin');
                 router.push('/admin/dashboard');
             } else if (adminData.status === 'pending') {
                 setError("Your application is still pending approval.");

@@ -67,7 +67,7 @@ export default function ManageIssueDetailPage({ params }: { params: { id: string
 
   return (
     <div className="space-y-8">
-        <Link href="/admin/manage-issues" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/admin/dashboard/manage-issues" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" />
             Back to Issues
         </Link>
