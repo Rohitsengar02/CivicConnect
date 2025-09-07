@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
 
 const issues = [
   {
@@ -26,6 +28,7 @@ const issues = [
     category: "Roads",
     status: "Confirmation",
     date: "2024-07-28",
+    imageUrl: "https://picsum.photos/800/600?random=1",
   },
   {
     id: "IS-002",
@@ -34,6 +37,7 @@ const issues = [
     category: "Electricity",
     status: "Pending",
     date: "2024-07-28",
+    imageUrl: "https://picsum.photos/800/600?random=2",
   },
   {
     id: "IS-003",
@@ -42,6 +46,7 @@ const issues = [
     category: "Sanitation",
     status: "Resolution",
     date: "2024-07-27",
+    imageUrl: "https://picsum.photos/800/600?random=3",
   },
   {
     id: "IS-004",
@@ -50,6 +55,7 @@ const issues = [
     category: "Water Supply",
     status: "Acknowledgment",
     date: "2024-07-26",
+    imageUrl: "https://picsum.photos/800/600?random=4",
   },
   {
     id: "IS-005",
@@ -58,6 +64,16 @@ const issues = [
     category: "Public Safety",
     status: "Pending",
     date: "2024-07-25",
+    imageUrl: "https://picsum.photos/800/600?random=5",
+  },
+  {
+    id: "IS-006",
+    title: "Open Manhole Cover",
+    reporter: "Sunita Devi",
+    category: "Sanitation",
+    status: "Confirmation",
+    date: "2024-07-24",
+    imageUrl: "https://picsum.photos/800/600?random=6",
   },
 ];
 
@@ -81,19 +97,35 @@ export default function ManageIssuesPage() {
       </Card>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {issues.map((issue) => (
-          <Card key={issue.id} className="flex flex-col">
+          <Card key={issue.id} className="flex flex-col overflow-hidden">
+            <Link href={`/admin/manage-issues/${issue.id}`} className="block hover:opacity-90 transition-opacity">
+              <div className="relative aspect-video">
+                <Image 
+                  src={issue.imageUrl}
+                  alt={issue.title}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            </Link>
             <CardHeader>
               <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">{issue.title}</CardTitle>
+                 <Link href={`/admin/manage-issues/${issue.id}`} className="block">
+                    <CardTitle className="text-lg hover:underline">{issue.title}</CardTitle>
+                 </Link>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button aria-haspopup="true" size="icon" variant="ghost">
+                    <Button aria-haspopup="true" size="icon" variant="ghost" className="shrink-0">
                       <MoreHorizontal className="h-4 w-4" />
                       <span className="sr-only">Toggle menu</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>View Details</DropdownMenuItem>
+                    <DropdownMenuItem>
+                        <Link href={`/admin/manage-issues/${issue.id}`} className="w-full h-full">
+                            View Details
+                        </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem>Update Status</DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem className="text-destructive">
