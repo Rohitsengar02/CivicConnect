@@ -1,17 +1,13 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   getFirestore,
-  collection,
-  getDocs,
-  query,
-  where,
   doc,
   getDoc,
   writeBatch,
@@ -27,7 +23,6 @@ import { states } from "@/lib/india-states-districts";
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -36,10 +31,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { BarChart, ListChecks, Users, AlertCircle, LogIn } from "lucide-react";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { Bar, BarChart as RechartsBarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { AlertCircle, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address."),
@@ -61,29 +56,16 @@ type LoginValues = z.infer<typeof loginSchema>;
 type DistrictSelectionValues = z.infer<typeof districtSelectionSchema>;
 type RegistrationValues = z.infer<typeof registrationSchema>;
 
-const chartData = [
-    { month: "January", issues: 186 },
-    { month: "February", issues: 305 },
-    { month: "March", issues: 237 },
-    { month: "April", issues: 273 },
-    { month: "May", issues: 209 },
-    { month: "June", issues: 214 },
-];
-const chartConfig = {
-    issues: {
-      label: "Issues",
-      color: "hsl(var(--primary))",
-    },
-};
 
 export function AdminPanel() {
-  const [step, setStep] = useState(1); // 1: Login/Register Choice, 2: District Select, 3: Register Form, 4: Login Form, 5: Dashboard
+  const [step, setStep] = useState(1); // 1: Login/Register Choice, 2: District Select, 3: Register Form, 4: Login Form
   const [selectedState, setSelectedState] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [districts, setDistricts] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const router = useRouter();
 
   const db = getFirestore(app);
   const auth = getAuth(app);
@@ -94,14 +76,16 @@ export function AdminPanel() {
 
   const handleStateChange = (stateName: string) => {
     setSelectedState(stateName);
+    setSelectedDistrict("");
     districtForm.setValue('state', stateName);
-    districtForm.setValue('district', ''); // Reset district when state changes
+    districtForm.resetField('district'); 
     const selectedStateData = states.find(s => s.state === stateName);
     setDistricts(selectedStateData ? selectedStateData.districts : []);
     setError(null);
   }
 
   const handleDistrictChange = (districtName: string) => {
+    setSelectedDistrict(districtName);
     districtForm.setValue('district', districtName);
     setError(null);
   }
@@ -117,7 +101,6 @@ export function AdminPanel() {
       if (districtAdminDoc.exists()) {
         setError(`An admin for ${data.district}, ${data.state} already exists.`);
       } else {
-        setSelectedDistrict(data.district);
         setStep(3); // Go to registration form
       }
     } catch (err) {
@@ -198,9 +181,7 @@ export function AdminPanel() {
         if (adminDoc.exists()) {
             const adminData = adminDoc.data();
             if (adminData.role === 'superadmin' || adminData.status === 'approved') {
-                setSelectedDistrict(adminData.district);
-                setSelectedState(adminData.state);
-                setStep(5); // Go to dashboard
+                router.push('/admin/dashboard');
             } else if (adminData.status === 'pending') {
                 setError("Your application is still pending approval.");
             } else {
@@ -261,7 +242,7 @@ export function AdminPanel() {
 
                 <div className="space-y-2">
                     <Label>District</Label>
-                    <Select onValueChange={handleDistrictChange} value={districtForm.getValues('district')} disabled={!selectedState}>
+                    <Select onValueChange={handleDistrictChange} value={selectedDistrict} disabled={!selectedState}>
                         <SelectTrigger>
                             <SelectValue placeholder="Select a district" />
                         </SelectTrigger>
@@ -338,82 +319,16 @@ export function AdminPanel() {
                 </CardContent>
             </motion.div>
         );
-
-      case 5: // Dashboard
-        return (
-          <motion.div
-            key="step5"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="p-4"
-          >
-            <div className="flex justify-between items-center mb-6">
-                 <h1 className="font-headline text-3xl font-bold">Dashboard for {selectedDistrict}</h1>
-                 <Button variant="outline" onClick={() => { setStep(1); setSelectedDistrict(""); setError(null); auth.signOut(); }}>Log Out</Button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Issues</CardTitle>
-                        <ListChecks className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">1,234</div>
-                        <p className="text-xs text-muted-foreground">+5.2% from last month</p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Resolved Issues</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">987</div>
-                        <p className="text-xs text-muted-foreground">80% resolution rate</p>
-                    </CardContent>
-                </Card>
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Pending Issues</CardTitle>
-                        <BarChart className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">247</div>
-                        <p className="text-xs text-muted-foreground">Needs attention</p>
-                    </CardContent>
-                </Card>
-            </div>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Issues Reported Over Time</CardTitle>
-                </CardHeader>
-                <CardContent>
-                     <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                        <RechartsBarChart accessibilityLayer data={chartData}>
-                            <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-                            <YAxis />
-                            <ChartTooltip content={<ChartTooltipContent />} />
-                            <Bar dataKey="issues" fill="var(--color-issues)" radius={4} />
-                        </RechartsBarChart>
-                    </ChartContainer>
-                </CardContent>
-            </Card>
-          </motion.div>
-        );
       default:
         return null;
     }
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto bg-card/50 backdrop-blur-lg border-white/20 shadow-xl overflow-hidden">
+    <Card className="w-full max-w-xl mx-auto bg-card/50 backdrop-blur-lg border-white/20 shadow-xl overflow-hidden">
         <AnimatePresence mode="wait">
             {renderStep()}
         </AnimatePresence>
     </Card>
   );
 }
-
-    
-
-    
