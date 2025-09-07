@@ -1,76 +1,38 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // Rules for user profiles
     match /users/{userId} {
-      // Any signed-in user can create their own profile
-      allow create: if isSignedIn();
-      // Only the profile owner can read or write their own data
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Rules for admin records (applications)
     match /admins/{adminId} {
-      // Only a superadmin can read and update admin statuses
-      allow read, update: if isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
-      // Anyone can create an admin application
-      allow create: if true;
+      allow read, write: if false; // Should be managed by superadmin
     }
     
-    // Rules for district admin mappings
     match /districtAdmins/{districtId} {
-       // Only a superadmin can manage these records
-       allow read, write: if isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
+       allow read, write: if false; // Should be managed by superadmin
     }
 
-    // Rules for anonymous issues
     match /anonymousIssues/{issueId} {
       allow read: if true;
       allow create: if true;
-      allow update, delete: if false; // Anonymous issues cannot be changed by clients
+      allow update: if request.auth != null; // Allow logged-in users to update (for voting)
+      allow delete: if false;
 
-      // Rules for voting on anonymous issues
       match /votes/{userId} {
-        // Any signed-in user can vote (create or delete their vote)
-        allow write: if isSignedIn() && request.auth.uid == userId;
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
     
-    // Rules for profiled issues
     match /profiledIssues/{issueId} {
       allow read: if true;
-      allow create: if isSignedIn();
-      
-      // Allow the reporter to update/delete, or an admin to update
-      allow update: if (isSignedIn() && resource.data.reporterId == request.auth.uid) || 
-                       (isSignedIn() && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.status == 'approved');
-      allow delete: if isSignedIn() && resource.data.reporterId == request.auth.uid;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null; // Allow any logged-in user to update (for voting)
+      allow delete: if request.auth != null && request.resource.data.reporterId == request.auth.uid;
 
-      // Rules for voting on profiled issues
       match /votes/{userId} {
-        // Any signed-in user can vote
-        allow write: if isSignedIn() && request.auth.uid == userId;
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
-    }
-    
-    // Rules for the consolidated 'issues' collection (for future use)
-    match /issues/{issueId} {
-        allow read, list: if true;
-        allow create: if isSignedIn();
-        allow update: if (isSignedIn() && resource.data.reporterId == request.auth.uid) || 
-                         (isSignedIn() && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.status == 'approved');
-        
-        match /votes/{userId} {
-            allow write: if isSignedIn() && request.auth.uid == userId;
-        }
     }
   }
 }
-
-    
