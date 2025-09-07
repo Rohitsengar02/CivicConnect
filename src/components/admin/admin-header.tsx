@@ -9,24 +9,14 @@ import {
   Package,
   PanelLeft,
   Users2,
-  ChevronDown,
   Bell,
   UserCheck
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ThemeToggle } from "../theme-toggle";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 export function AdminHeader({ userRole }: { userRole: string }) {
   const router = useRouter();
@@ -85,31 +75,11 @@ export function AdminHeader({ userRole }: { userRole: string }) {
       </Sheet>
       
       <div className="hidden md:block">
-        <h1 className="font-semibold text-lg">{userRole === 'superadmin' ? 'Super Admin' : 'Ranchi District'}</h1>
+        <h1 className="font-semibold text-lg">{userRole === 'superadmin' ? 'Super Admin Dashboard' : 'Ranchi District Dashboard'}</h1>
       </div>
 
       <div className="ml-auto flex items-center gap-4">
           <ThemeToggle />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex items-center gap-2">
-                 <Avatar className="h-6 w-6">
-                    <AvatarImage src="https://picsum.photos/id/1027/48/48" />
-                    <AvatarFallback>SA</AvatarFallback>
-                </Avatar>
-                <span className="hidden md:inline">{userRole === 'superadmin' ? 'Super Admin' : 'Anjali Singh'}</span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground"/>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuItem>Support</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
       </div>
     </header>
   );

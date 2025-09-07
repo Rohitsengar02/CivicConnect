@@ -35,14 +35,13 @@ body {
     --radius: 0.5rem;
     
     /* Light Theme Sidebar */
-    --sidebar-background: 240 5% 96%;
-    --sidebar-foreground: 240 6% 10%;
-    --sidebar-primary: 195 70% 50%;
-    --sidebar-primary-foreground: 195 20% 98%;
-    --sidebar-accent: 195 20% 90%;
-    --sidebar-accent-foreground: 240 6% 10%;
-    --sidebar-border: 240 6% 88%;
-    --sidebar-ring: 195 70% 50%;
+    --sidebar-background: 240 5% 100%;
+    --sidebar-foreground: 240 6% 40%;
+    --sidebar-active: 220 90% 55%;
+    --sidebar-active-foreground: 220 90% 55%;
+    --sidebar-hover: 240 5% 96%;
+    --sidebar-hover-foreground: 240 6% 10%;
+    --sidebar-border: 240 5% 90%;
   }
   .dark {
     --background: 200 15% 8%;
@@ -70,15 +69,14 @@ body {
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
     
-    /* Dark Theme Sidebar (default) */
+    /* Dark Theme Sidebar */
     --sidebar-background: 0 0% 0%;
-    --sidebar-foreground: 240 5% 95%;
-    --sidebar-primary: 195 70% 55%;
-    --sidebar-primary-foreground: 240 5% 5%;
-    --sidebar-accent: 240 5% 15%;
-    --sidebar-accent-foreground: 240 5% 95%;
+    --sidebar-foreground: 240 5% 60%;
+    --sidebar-active: 210 90% 65%;
+    --sidebar-active-foreground: 210 90% 65%;
+    --sidebar-hover: 240 5% 10%;
+    --sidebar-hover-foreground: 240 5% 95%;
     --sidebar-border: 240 5% 15%;
-    --sidebar-ring: 195 70% 55%;
   }
 }
 

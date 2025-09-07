@@ -12,9 +12,21 @@ import {
   LogOut,
   Users2,
   Bell,
-  UserCheck
+  UserCheck,
+  MoreHorizontal,
+  Settings
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
 
@@ -27,61 +39,114 @@ export function AdminSidebar({ userRole }: { userRole: string }) {
         router.push('/admin');
     };
 
-    const adminNavItems = [
+    const navItems = [
         { href: "/admin/dashboard", icon: Home, label: "Dashboard" },
         { href: "/admin/dashboard/manage-issues", icon: Package, label: "Manage Issues", badge: 2 },
         { href: "/admin/dashboard/users", icon: Users2, label: "Users" },
         { href: "/admin/dashboard/notifications", icon: Bell, label: "Notifications", badge: 5 },
+    ];
+
+    const shortcutItems = [
         { href: "/admin/dashboard/reports", icon: LineChart, label: "Reports" },
-    ];
+        ...(userRole === 'superadmin' ? [{ href: "/admin/dashboard/approve-admins", icon: UserCheck, label: "Approve Admins" }] : []),
+        { href: "#", icon: Settings, label: "Settings" }
+    ]
 
-    const superAdminNavItems = [
-        ...adminNavItems,
-        { href: "/admin/dashboard/approve-admins", icon: UserCheck, label: "Approve Admins" },
-    ];
-
-    const navItems = userRole === 'superadmin' ? superAdminNavItems : adminNavItems;
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-sidebar text-sidebar-foreground sm:flex lg:w-56">
-      <nav className="flex flex-col items-center gap-4 px-2 sm:py-5 lg:items-start lg:px-4">
-        <Link
-          href="/admin/dashboard"
-          className="group mb-2 flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-sidebar-primary text-lg font-semibold text-sidebar-primary-foreground md:h-8 md:w-8 md:text-base lg:h-10 lg:w-full lg:justify-start lg:px-3"
-        >
-          <Building2 className="h-4 w-4 transition-all group-hover:scale-110 lg:h-5 lg:w-5" />
-          <span className="hidden lg:inline">CivicConnect</span>
-          <span className="sr-only">CivicConnect Admin</span>
-        </Link>
-        {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:h-8 md:w-8 lg:h-10 lg:w-full lg:justify-start lg:px-3 lg:py-2",
-                    isActive ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80"
-                )}
-              >
-                <item.icon className="h-5 w-5" />
-                <span className="hidden lg:ml-4 lg:inline">{item.label}</span>
-                {item.badge && <Badge className="ml-auto hidden lg:flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground">{item.badge}</Badge>}
-                <span className="sr-only">{item.label}</span>
-              </Link>
-            )
-        })}
-      </nav>
-      <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5 lg:items-start lg:px-4">
-        <button
-            onClick={handleLogout}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:h-8 md:w-8 lg:h-10 lg:w-full lg:justify-start lg:px-3 lg:py-2"
-        >
-            <LogOut className="h-5 w-5" />
-            <span className="hidden lg:ml-4 lg:inline">Logout</span>
-            <span className="sr-only">Logout</span>
-        </button>
-      </nav>
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-56 flex-col border-r bg-sidebar text-sidebar-foreground sm:flex">
+      <div className="flex flex-col h-full">
+        <div className="p-4">
+            <Link
+            href="/admin/dashboard"
+            className="group mb-4 flex items-center gap-2"
+            >
+            <Building2 className="h-6 w-6 text-primary" />
+            <span className="text-lg font-semibold text-foreground">
+                CivicConnect
+            </span>
+            </Link>
+        </div>
+        
+        <nav className="flex-1 space-y-2 px-4">
+            {navItems.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                <Link
+                    key={item.label}
+                    href={item.href}
+                    className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all",
+                        isActive 
+                        ? "bg-sidebar-hover text-sidebar-active-foreground" 
+                        : "hover:bg-sidebar-hover hover:text-sidebar-hover-foreground"
+                    )}
+                >
+                    <item.icon className={cn("h-4 w-4", isActive && "text-sidebar-active")} />
+                    <span className="flex-1">{item.label}</span>
+                     {item.badge && <Badge className="ml-auto flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-500 text-white">{item.badge}</Badge>}
+                </Link>
+                )
+            })}
+        </nav>
+
+        <div className="px-4 mt-4">
+            <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground tracking-wider">Shortcuts</h3>
+             <nav className="space-y-2">
+                {shortcutItems.map((item) => {
+                    const isActive = pathname === item.href;
+                    return (
+                    <Link
+                        key={item.label}
+                        href={item.href}
+                        className={cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all",
+                            isActive 
+                            ? "bg-sidebar-hover text-sidebar-active-foreground" 
+                            : "hover:bg-sidebar-hover hover:text-sidebar-hover-foreground"
+                        )}
+                    >
+                        <item.icon className={cn("h-4 w-4", isActive && "text-sidebar-active")} />
+                        <span>{item.label}</span>
+                    </Link>
+                    )
+                })}
+            </nav>
+        </div>
+        
+        <div className="mt-auto border-t p-4">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <Avatar className="h-9 w-9">
+                        <AvatarImage src="https://picsum.photos/id/1027/48/48" />
+                        <AvatarFallback>{userRole === 'superadmin' ? 'SA' : 'DA'}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <p className="text-sm font-semibold text-foreground">{userRole === 'superadmin' ? 'Super Admin' : 'Anjali S.'}</p>
+                        <p className="text-xs text-muted-foreground">{userRole === 'superadmin' ? 'Global' : 'Ranchi District'}</p>
+                    </div>
+                </div>
+                 <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem>Profile</DropdownMenuItem>
+                      <DropdownMenuItem>Settings</DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleLogout} className="text-destructive">
+                          <LogOut className="mr-2 h-4 w-4"/>
+                          Logout
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+            </div>
+        </div>
+      </div>
     </aside>
   );
 }
