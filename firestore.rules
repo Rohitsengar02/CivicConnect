@@ -1,34 +1,60 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Helper functions
+    function isSuperAdmin() {
+      // In a real app, use a secure way to identify the super admin,
+      // e.g., checking a custom claim or a specific UID from a secure config.
+      // For this example, we'll keep it simple, but this is not production-ready.
+      return request.auth.uid == "SUPER_ADMIN_UID_PLACEHOLDER";
+    }
+
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.status == 'approved';
+    }
+    
+    // User Profiles
     match /users/{userId} {
       allow read, update: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null;
-      
+
+      // Notifications subcollection
       match /notifications/{notificationId} {
-        allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null; // Allow any authenticated user to create a notification for another user
+        allow read: if request.auth != null && request.auth.uid == userId;
+        // Allow any authenticated user to create a notification for another user (e.g., for votes)
+        allow create: if request.auth != null; 
+        allow update, delete: if false;
       }
-      
+
+      // Saved Issues subcollection
       match /savedIssues/{issueId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+          allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
+    // Admin Profiles & District Mappings
     match /admins/{adminId} {
-      allow read, write: if isSuperAdmin();
+      allow read, update: if isSuperAdmin();
+      allow create, delete: if false;
     }
     
     match /districtAdmins/{districtId} {
-       allow read, write: if false; // Should be managed by superadmin
+       // Allow any auth user to check if a district admin exists.
+       allow get: if request.auth != null; 
+       allow list, create, update, delete: if isSuperAdmin();
     }
 
+    // Issues Collections
     match /anonymousIssues/{issueId} {
       allow read: if true;
       allow create: if true;
-      allow update: if request.auth != null; // Allow updates for votes
-      allow delete: if false;
-      
+      // Allow authenticated users to update only the 'votes' field.
+      allow update: if request.auth != null 
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes']);
+
       match /votes/{userId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
@@ -37,30 +63,25 @@ service cloud.firestore {
     match /profiledIssues/{issueId} {
       allow read: if true;
       allow create: if request.auth != null;
-      allow update: if request.auth != null; // Allow updates for votes and status changes
+      // Allow owner to edit or an admin to change status.
+      allow update: if request.auth != null && (
+                      (resource.data.reporterId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'description', 'images'])) ||
+                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes'])) ||
+                      (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+                    );
       allow delete: if request.auth != null && resource.data.reporterId == request.auth.uid;
 
-      match /votes/{userId} {
+       match /votes/{userId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
     
-    // This allows admins to update issues
-    match /issues/{issueId} {
+     match /issues/{issueId} {
       allow read: if true;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && isAdmin();
-    }
-
-    function isAdmin() {
-      return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.status == 'approved';
-    }
-
-    function isSuperAdmin() {
-      // Replace with your actual super admin UID logic
-      // This is an example and should be secured appropriately
-      return request.auth != null && request.auth.uid == "SUPER_ADMIN_UID";
+      allow create: if true;
+       match /votes/{userId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
   }
 }
