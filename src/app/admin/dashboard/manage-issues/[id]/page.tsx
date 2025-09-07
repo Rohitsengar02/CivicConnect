@@ -24,13 +24,14 @@ import {
   } from "@/components/ui/select";
 import { ArrowLeft, MessageSquare, Send, UserCheck, ClipboardList, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { getFirestore, doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
+import { getFirestore, doc, getDoc, updateDoc, Timestamp, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { app } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
 interface Issue {
   id: string;
   title: string;
+  reporterId?: string;
   reporterName?: string;
   reporterEmail?: string;
   category: string;
@@ -79,13 +80,26 @@ export default function ManageIssueDetailPage({ params }: { params: { id: string
   }, [params.id, db, toast]);
 
   const handleSaveChanges = async () => {
-      if (!issue) return;
+      if (!issue || newStatus === issue.status) return;
       setIsSaving(true);
       try {
         const issueRef = doc(db, "issues", issue.id);
         await updateDoc(issueRef, {
             status: newStatus
         });
+
+        // Send notification to user
+        if (issue.reporterId) {
+            const notificationRef = collection(db, "users", issue.reporterId, "notifications");
+            await addDoc(notificationRef, {
+                issueId: issue.id,
+                message: `The status of your issue "${issue.title}" has been updated to ${newStatus}.`,
+                type: 'status_update',
+                read: false,
+                createdAt: serverTimestamp(),
+            });
+        }
+        
         setIssue(prev => prev ? {...prev, status: newStatus} : null);
         toast({
             title: "Success",
@@ -207,7 +221,7 @@ export default function ManageIssueDetailPage({ params }: { params: { id: string
                             </SelectContent>
                         </Select>
                      </div>
-                     <Button className="w-full" onClick={handleSaveChanges} disabled={isSaving}>
+                     <Button className="w-full" onClick={handleSaveChanges} disabled={isSaving || newStatus === issue.status}>
                         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Save Changes
                     </Button>

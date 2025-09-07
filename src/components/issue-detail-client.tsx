@@ -21,11 +21,12 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, runTransaction, getDoc, DocumentData, setDoc, deleteDoc } from "firebase/firestore";
+import { doc, runTransaction, getDoc, DocumentData, setDoc, deleteDoc, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 export interface Issue {
   id: string;
+  reporterId?: string;
   reporterName?: string;
   avatarUrl?: string | null;
   createdAt: string; 
@@ -152,6 +153,18 @@ export function IssueDetailClient({ issue }: { issue: Issue }) {
                 transaction.update(issueRef!, { votes: newVoteCount });
                 setVoteCount(newVoteCount);
             });
+             // Send notification to issue reporter
+            const issueData = issueDoc.data();
+            if (issueData.reporterId && issueData.reporterId !== user.uid) {
+                const notificationRef = collection(db, "users", issueData.reporterId, "notifications");
+                await addDoc(notificationRef, {
+                    issueId: issue.id,
+                    message: `${user.displayName || 'Someone'} ${direction === 'up' ? 'upvoted' : 'downvoted'} your issue: "${issue.title}"`,
+                    type: 'vote',
+                    read: false,
+                    createdAt: serverTimestamp(),
+                });
+            }
         } catch (error) {
             console.error("Vote transaction failed: ", error);
             toast({ title: "Error", description: "Your vote could not be recorded. Please try again.", variant: "destructive"});

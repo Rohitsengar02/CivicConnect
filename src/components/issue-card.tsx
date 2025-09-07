@@ -13,7 +13,7 @@ import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, runTransaction, getDoc, DocumentData, setDoc, deleteDoc } from "firebase/firestore";
+import { doc, runTransaction, getDoc, DocumentData, setDoc, deleteDoc, collection, addDoc, serverTimestamp, query, where, getDocs } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
 type IssueStatus = "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
@@ -21,6 +21,7 @@ type IssueStatus = "Pending" | "Confirmation" | "Acknowledgment" | "Resolution";
 export type Issue = {
   id: string;
   reporter: string;
+  reporterId?: string;
   avatarUrl: string | null;
   time: string;
   imageUrl: string;
@@ -77,15 +78,11 @@ export function IssueCard({ issue }: IssueCardProps) {
             // Check vote status
             const collectionsToTry = ['profiledIssues', 'anonymousIssues'];
             for (const coll of collectionsToTry) {
-                try {
-                    const voteRef = doc(db, coll, issue.id, "votes", user.uid);
-                    const voteSnap = await getDoc(voteRef);
-                    if (voteSnap.exists()) {
-                        setVoted(voteSnap.data().direction);
-                        break;
-                    }
-                } catch (e) {
-                    // This can fail if the collection doesn't exist, which is fine
+                const voteRef = doc(db, coll, issue.id, "votes", user.uid);
+                const voteSnap = await getDoc(voteRef);
+                if (voteSnap.exists()) {
+                    setVoted(voteSnap.data().direction);
+                    break;
                 }
             }
             // Check saved status
@@ -165,6 +162,19 @@ export function IssueCard({ issue }: IssueCardProps) {
               transaction.update(issueRef!, { votes: newVoteCount });
               setVoteCount(newVoteCount);
           });
+          
+          // Send notification to issue reporter
+          const issueData = issueDoc.data();
+          if (issueData.reporterId && issueData.reporterId !== user.uid) {
+            const notificationRef = collection(db, "users", issueData.reporterId, "notifications");
+            await addDoc(notificationRef, {
+                issueId: issue.id,
+                message: `${user.displayName || 'Someone'} ${direction === 'up' ? 'upvoted' : 'downvoted'} your issue: "${issue.title}"`,
+                type: 'vote',
+                read: false,
+                createdAt: serverTimestamp(),
+            });
+          }
       } catch (error) {
           console.error("Vote transaction failed: ", error);
           toast({ title: "Error", description: "Your vote could not be recorded. Please try again.", variant: "destructive"});
