@@ -1,0 +1,42 @@
+# Blockchain Integration Plan for CivicConnect
+
+## 1. Setup Blockchain Environment
+- [ ] Install required dependencies (ethers.js, @thirdweb-dev/sdk)
+- [ ] Set up a free blockchain network (Polygon Mumbai Testnet)
+- [ ] Get test MATIC tokens from a faucet
+
+## 2. Smart Contract Development
+- [ ] Create a Solidity smart contract (HashStorage.sol)
+- [ ] Implement functions to store and retrieve issue hashes
+- [ ] Add event emissions for issue creation and updates
+
+## 3. Backend Integration
+- [ ] Create a blockchain service to interact with the smart contract
+- [ ] Implement functions to connect to wallet and sign transactions
+- [ ] Add error handling and transaction status tracking
+
+## 4. Frontend Updates
+- [ ] Add wallet connection button
+- [ ] Update issue submission flow to store hash on blockchain
+- [ ] Display blockchain transaction status
+
+## 5. Firebase Integration
+- [ ] Store raw issue data in Firestore
+- [ ] Store blockchain transaction hashes with issue documents
+- [ ] Add real-time updates for issue verification status
+
+## 6. Testing
+- [ ] Test smart contract functionality
+- [ ] Test end-to-end issue submission flow
+- [ ] Verify data integrity between blockchain and Firebase
+
+## 7. Deployment
+- [ ] Deploy smart contract to Polygon Mumbai Testnet
+- [ ] Update environment variables for production
+- [ ] Test in production environment
+
+## Required Dependencies
+- ethers.js
+- @thirdweb-dev/sdk
+- @thirdweb-dev/react (for easy wallet connection)
+- dotenv (for environment variables)

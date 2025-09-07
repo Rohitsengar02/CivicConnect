@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Turbopack configuration
+  experimental: {
+    // Turbopack specific configurations can go here
+  },
   images: {
     remotePatterns: [
       {
@@ -25,6 +29,12 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'unpkg.com',
         port: '',
         pathname: '/**',
       },
