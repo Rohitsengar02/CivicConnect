@@ -69,7 +69,7 @@ export default function SignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
       
-      let photoURL = "";
+      let photoURL: string | null = null;
       if (values.profileImage) {
           photoURL = await uploadToCloudinary(values.profileImage);
       }
