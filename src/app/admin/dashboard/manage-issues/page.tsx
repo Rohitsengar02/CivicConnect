@@ -66,27 +66,31 @@ export default function ManageIssuesPage() {
 
   useEffect(() => {
     const fetchIssues = async () => {
-      if (!userRole) return; // Wait until role is determined
+      if (!userRole) return; 
 
       setIsLoading(true);
       try {
-        let issuesQuery = query(collection(db, "issues"));
-        
-        // If it's an admin (not superadmin), filter by their district
-        if (userRole === 'admin' && adminInfo?.district) {
-          issuesQuery = query(issuesQuery, where("district", "==", adminInfo.district));
+        const collectionsToQuery = ["anonymousIssues", "profiledIssues"];
+        let allIssues: Issue[] = [];
+
+        for (const coll of collectionsToQuery) {
+            let issuesQuery = query(collection(db, coll));
+            
+            if (userRole === 'admin' && adminInfo?.district) {
+              issuesQuery = query(issuesQuery, where("district", "==", adminInfo.district));
+            }
+
+            const querySnapshot = await getDocs(issuesQuery);
+            const issuesData = querySnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            } as Issue));
+            allIssues = [...allIssues, ...issuesData];
         }
-
-        const querySnapshot = await getDocs(issuesQuery);
-        const issuesData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as Issue));
         
-        // Sort by date client-side
-        issuesData.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+        allIssues.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
 
-        setIssues(issuesData);
+        setIssues(allIssues);
       } catch (error) {
         console.error("Error fetching issues: ", error);
         toast({
@@ -99,12 +103,9 @@ export default function ManageIssuesPage() {
       }
     };
     
-    // Only fetch issues if userRole is known. For district admins, wait for adminInfo.
     if (userRole === 'superadmin' || (userRole === 'admin' && adminInfo)) {
         fetchIssues();
     } else if (userRole) {
-        // Handle case where userRole is known but adminInfo is not yet (for admin)
-        // or just to turn off loader if no role is found.
         setIsLoading(false);
     }
   }, [db, toast, userRole, adminInfo]);
