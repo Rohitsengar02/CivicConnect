@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Building2, Menu } from "lucide-react";
+import { Building2, Menu, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +48,16 @@ export function Header() {
 
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
+           <Link href="/notifications">
+            <Button variant="ghost" size="icon" className="relative">
+                <Bell />
+                <span className="absolute top-1 right-1 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                </span>
+                <span className="sr-only">Notifications</span>
+            </Button>
+           </Link>
           <Button variant="ghost">Log In</Button>
           <Button>Sign Up</Button>
         </div>
@@ -67,6 +77,7 @@ export function Header() {
                     <Link href="/report-issue" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Report Issue</Link>
                     <Link href="/about" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>About</Link>
                     <Link href="/admin" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Admin</Link>
+                     <Link href="/notifications" className="text-lg font-medium" onClick={() => setMobileMenuOpen(false)}>Notifications</Link>
                 </nav>
                 <div className="mt-auto flex flex-col gap-4">
                   <div className="flex items-center justify-between">

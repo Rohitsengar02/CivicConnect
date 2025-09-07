@@ -9,7 +9,8 @@ import {
   Package,
   PanelLeft,
   Users2,
-  ChevronDown
+  ChevronDown,
+  Bell,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,13 @@ export function AdminHeader() {
             >
               <Users2 className="h-5 w-5" />
               Users
+            </Link>
+             <Link
+              href="/admin/notifications"
+              className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+            >
+              <Bell className="h-5 w-5" />
+              Notifications
             </Link>
             <Link
               href="/admin/reports"

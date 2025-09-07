@@ -10,20 +10,17 @@ import {
   Package,
   LogOut,
   Users2,
+  Bell
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const navItems = [
     { href: "/admin", icon: Home, label: "Dashboard" },
-    { href: "/admin/manage-issues", icon: Package, label: "Manage Issues" },
+    { href: "/admin/manage-issues", icon: Package, label: "Manage Issues", badge: 2 },
     { href: "/admin/users", icon: Users2, label: "Users" },
+    { href: "/admin/notifications", icon: Bell, label: "Notifications", badge: 5 },
     { href: "/admin/reports", icon: LineChart, label: "Reports" },
 ]
 
@@ -41,20 +38,24 @@ export function AdminSidebar() {
           <span className="hidden lg:inline">CivicConnect</span>
           <span className="sr-only">CivicConnect Admin</span>
         </Link>
-        {navItems.map((item) => (
-          <Link
-            key={item.label}
-            href={item.href}
-            className={cn(
-                "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8 lg:h-10 lg:w-full lg:justify-start lg:px-3 lg:py-2",
-                pathname === item.href && "bg-accent text-accent-foreground"
-            )}
-          >
-            <item.icon className="h-5 w-5" />
-            <span className="hidden lg:ml-4 lg:inline">{item.label}</span>
-            <span className="sr-only">{item.label}</span>
-          </Link>
-        ))}
+        {navItems.map((item) => {
+            const isActive = pathname.startsWith(item.href) && (item.href !== "/admin" || pathname === "/admin");
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8 lg:h-10 lg:w-full lg:justify-start lg:px-3 lg:py-2",
+                    isActive && "bg-accent text-accent-foreground"
+                )}
+              >
+                <item.icon className="h-5 w-5" />
+                <span className="hidden lg:ml-4 lg:inline">{item.label}</span>
+                {item.badge && <Badge className="ml-auto hidden lg:flex h-6 w-6 shrink-0 items-center justify-center rounded-full">{item.badge}</Badge>}
+                <span className="sr-only">{item.label}</span>
+              </Link>
+            )
+        })}
       </nav>
       <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5 lg:items-start lg:px-4">
         <Link
