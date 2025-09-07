@@ -7,19 +7,12 @@ import {
   LineChart,
   Package,
   PanelLeft,
-  Settings,
   Users2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { ThemeToggle } from "../theme-toggle";
 
 export function AdminHeader() {
