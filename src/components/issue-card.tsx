@@ -53,6 +53,13 @@ export function IssueCard({ issue }: IssueCardProps) {
   const [voteCount, setVoteCount] = useState(0);
   const [voted, setVoted] = useState<"up" | "down" | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+  const [displayDate, setDisplayDate] = useState(issue.time);
+
+  useEffect(() => {
+    // This ensures toLocaleDateString is only called on the client, avoiding hydration mismatch.
+    setDisplayDate(new Date(issue.createdAt).toLocaleDateString());
+  }, [issue.createdAt]);
+
 
   const handleUpvote = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -131,7 +138,7 @@ export function IssueCard({ issue }: IssueCardProps) {
                   </Avatar>
                   <div>
                       <p className="font-semibold">{issue.reporter}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(issue.createdAt).toLocaleDateString()}</p>
+                      <p className="text-xs text-muted-foreground">{displayDate}</p>
                   </div>
               </div>
               <div className="flex items-center gap-1">

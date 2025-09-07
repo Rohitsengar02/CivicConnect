@@ -1,9 +1,18 @@
 
+"use client";
+
 import { Header } from "@/components/layout/header";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Footer } from "@/components/layout/footer";
+import { useState, useEffect } from "react";
 
 export default function PrivacyPage() {
+  const [lastUpdated, setLastUpdated] = useState("");
+
+  useEffect(() => {
+    setLastUpdated(new Date().toLocaleDateString());
+  }, []);
+
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
       <Header />
@@ -13,7 +22,7 @@ export default function PrivacyPage() {
             <h1 className="font-headline text-4xl font-bold tracking-tight text-foreground md:text-5xl">
               Privacy Policy
             </h1>
-            <p className="lead">Last updated: {new Date().toLocaleDateString()}</p>
+            <p className="lead">Last updated: {lastUpdated}</p>
 
             <h2>Introduction</h2>
             <p>
