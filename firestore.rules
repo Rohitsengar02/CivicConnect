@@ -2,56 +2,77 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function getSuperAdminUid() {
-      return env.SUPER_ADMIN_UID;
+  
+    // Helper function to check for super admin role
+    function isSuperAdmin(userId) {
+      return exists(/databases/$(database)/documents/admins/$(userId)) &&
+             get(/databases/$(database)/documents/admins/$(userId)).data.role == 'superadmin';
     }
 
-    // Admins can be managed by the super admin
+    // Admins: Tracks district admin applications and roles
     match /admins/{adminId} {
-      allow read, write: if request.auth != null && request.auth.uid == getSuperAdminUid();
-      allow get: if request.auth != null;
-      allow create: if request.auth != null;
+      allow read: if request.auth != null;
+      // Allow creation if the user is creating their own admin doc
+      allow create: if request.auth.uid == adminId;
+      // Allow updates only by a super admin
+      allow update: if isSuperAdmin(request.auth.uid);
+      allow delete: if false; // No one can delete admin docs
     }
 
-    // District mappings can be created by a new admin for themselves, or managed by super admin
+    // District Admins: Maps districts to admin UIDs to prevent duplicates
     match /districtAdmins/{districtId} {
-      allow read, write: if request.auth != null && request.auth.uid == getSuperAdminUid();
-      allow create: if request.auth != null && request.resource.data.adminId == request.auth.uid;
+      // Allow checking for existence during registration
       allow get: if request.auth != null;
+      // Allow a new user to create their own district mapping
+      allow create: if request.auth.uid == request.resource.data.adminId;
+      allow list, update, delete: if false; // Only super admin should manage this (via Cloud Functions, etc.)
     }
 
-    // Issues can be read by anyone, created by anyone, and updated/deleted only by the reporter or an admin
-    match /{collection}/{issueId} {
-      allow read: if true;
-      allow create: if true;
-
-      // Allow updates/deletes if user is the original reporter
-      allow update, delete: if request.auth != null && request.auth.uid == resource.data.reporterId;
-      
-      // Allow voting by any authenticated user
-      match /votes/{userId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-    }
-
-    // Users can only manage their own data
+    // Users collection
     match /users/{userId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
-
-      // Notifications:
-      // - A user can read/delete their own notifications
-      // - Any authenticated user can create a notification for another user (for votes, etc.)
-      match /notifications/{notificationId} {
-        allow read, delete: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null;
+      allow read, write: if request.auth.uid == userId;
+      
+      // Saved Issues subcollection
+      match /savedIssues/{issueId} {
+        allow read, write: if request.auth.uid == userId;
       }
       
-      // Saved Issues:
-      // - A user can manage their own saved issues
-      match /savedIssues/{issueId} {
-        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+      // Notifications subcollection
+      match /notifications/{notificationId} {
+        allow read: if request.auth.uid == userId; // User can read their own notifications
+        allow create: if request.auth != null; // Any authenticated user can create a notification for another user
+        allow update, delete: if request.auth.uid == userId; // User can update/delete their own notifications
+      }
+    }
+
+    // Issues (generic, potentially legacy or for specific purposes)
+    match /issues/{issueId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Anonymous Issues
+    match /anonymousIssues/{issueId} {
+      allow read: if true;
+      allow create: if true; // Anyone can create an anonymous issue
+      allow update, delete: if false; // Immutable after creation
+
+      // Votes on anonymous issues
+      match /votes/{userId} {
+        allow read, write: if request.auth.uid == userId;
+      }
+    }
+
+    // Profiled Issues
+    match /profiledIssues/{issueId} {
+      allow read: if true;
+      // User can create an issue if the reporterId matches their own UID
+      allow create: if request.auth.uid == request.resource.data.reporterId;
+      allow update, delete: if false; // Immutable after creation for now
+
+      // Votes on profiled issues
+      match /votes/{userId} {
+        allow read, write: if request.auth.uid == userId;
       }
     }
   }
