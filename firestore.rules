@@ -1,74 +1,55 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper functions
     function isSuperAdmin() {
-      return request.auth.uid == "SUPER_ADMIN_UID"; // Replace with actual Super Admin UID
+      return request.auth != null && request.auth.uid == "SUPER_ADMIN_UID"; // Replace with actual Super Admin UID
     }
 
     function isAdmin() {
-      return exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.status == 'approved';
+      // Check if the user is in the 'admins' collection and is approved
+      return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+             && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.status == 'approved';
     }
 
     match /users/{userId} {
       allow read, update: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null;
-      
-      // Allow users to manage their own saved issues
+
       match /savedIssues/{issueId} {
-        allow read, write, delete: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      match /notifications/{notificationId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
       }
     }
 
     match /admins/{adminId} {
-      allow read: if isAdmin() || isSuperAdmin();
+      allow read, update: if isSuperAdmin();
       allow create: if request.auth != null; // Allows new admin applications
-      allow update: if isSuperAdmin(); // Only super admin can change status
-      allow delete: if isSuperAdmin();
     }
     
     match /districtAdmins/{districtId} {
-       allow read, create: if request.auth != null; // Allows creation during registration
+       allow read, create: if isSuperAdmin() || request.auth != null; // Allow creation for registration check
        allow update, delete: if isSuperAdmin();
     }
 
-    match /anonymousIssues/{issueId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if request.auth != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes']); // Allow only vote updates by auth users
-      allow delete: if false;
-
-      // Voting subcollection
-      match /votes/{userId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-    }
-    
-    match /profiledIssues/{issueId} {
+    match /{collection}/{issueId} {
       allow read: if true;
       allow create: if request.auth != null;
-      allow update: if request.auth != null && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes']) || request.resource.data.reporterId == request.auth.uid);
-      allow delete: if request.auth != null && resource.data.reporterId == request.auth.uid;
+       // Allow logged-in users to update the 'votes' field only
+      allow update: if request.auth != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes']);
       
-      // Voting subcollection
       match /votes/{userId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
     
-    // New consolidated issues collection
-     match /issues/{issueId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if request.auth != null && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes']);
-      allow delete: if false;
-
-      match /votes/{userId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
+    match /issues/{issueId} {
+       allow read: if true;
+       allow create: if true; // allow anonymous and authenticated
+       allow update: if isAdmin(); // Only admins can update status etc.
     }
   }
 }
