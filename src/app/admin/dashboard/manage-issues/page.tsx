@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { MoreHorizontal, Loader2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { getFirestore, collection, getDocs, Timestamp } from "firebase/firestore";
+import { getFirestore, collection, getDocs, Timestamp, query, where } from "firebase/firestore";
 import { app } from "@/lib/firebase";
 import { useToast } from "@/hooks/use-toast";
 
@@ -34,6 +34,10 @@ interface Issue {
   status: string;
   createdAt: Timestamp;
   imageUrls: string[];
+}
+
+interface AdminInfo {
+    district: string;
 }
 
 const statusVariant: { [key: string]: "default" | "secondary" | "destructive" | "outline" } = {
@@ -48,16 +52,40 @@ export default function ManageIssuesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
   const db = getFirestore(app);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [adminInfo, setAdminInfo] = useState<AdminInfo | null>(null);
+
+  useEffect(() => {
+    const role = sessionStorage.getItem('userRole');
+    const info = sessionStorage.getItem('adminInfo');
+    setUserRole(role);
+    if (info) {
+      setAdminInfo(JSON.parse(info));
+    }
+  }, []);
 
   useEffect(() => {
     const fetchIssues = async () => {
+      if (!userRole) return; // Wait until role is determined
+
       setIsLoading(true);
       try {
-        const querySnapshot = await getDocs(collection(db, "issues"));
+        let issuesQuery = query(collection(db, "issues"));
+        
+        // If it's an admin (not superadmin), filter by their district
+        if (userRole === 'admin' && adminInfo?.district) {
+          issuesQuery = query(issuesQuery, where("district", "==", adminInfo.district));
+        }
+
+        const querySnapshot = await getDocs(issuesQuery);
         const issuesData = querySnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         } as Issue));
+        
+        // Sort by date client-side
+        issuesData.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
+
         setIssues(issuesData);
       } catch (error) {
         console.error("Error fetching issues: ", error);
@@ -70,8 +98,16 @@ export default function ManageIssuesPage() {
         setIsLoading(false);
       }
     };
-    fetchIssues();
-  }, [db, toast]);
+    
+    // Only fetch issues if userRole is known. For district admins, wait for adminInfo.
+    if (userRole === 'superadmin' || (userRole === 'admin' && adminInfo)) {
+        fetchIssues();
+    } else if (userRole) {
+        // Handle case where userRole is known but adminInfo is not yet (for admin)
+        // or just to turn off loader if no role is found.
+        setIsLoading(false);
+    }
+  }, [db, toast, userRole, adminInfo]);
 
   return (
     <div>
@@ -88,7 +124,7 @@ export default function ManageIssuesPage() {
             <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       ) : issues.length === 0 ? (
-        <p className="text-center text-muted-foreground">No issues have been reported yet.</p>
+        <p className="text-center text-muted-foreground">No issues have been reported in this district yet.</p>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {issues.map((issue) => (
